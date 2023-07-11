@@ -1,5 +1,6 @@
 package com.wkf.tomcat;
 
+import com.sun.net.httpserver.HttpHandler;
 import com.wkf.annotation.RequestMetadata;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.Http500Handler;
@@ -211,8 +212,7 @@ public class Reactor extends Thread {
             for (var h : httpHandles) {
                 if (h.hit(request)) {
                     try {
-                        h.doHandle(request);
-                        logger.info("request {} {} handled by {}", request.requestHeader.method, request.requestHeader.path, h);
+                       new Worker(request, h).start();
                     } catch (Exception e) {
                         logger.error("{}", e.toString());
                         new Http500Handler(e).doHandle(request);
@@ -225,6 +225,26 @@ public class Reactor extends Thread {
                 new Http400Handler().doHandle(request);
                 logger.error("no mapping handler for request: {} {}", request.requestHeader.method, request.requestHeader.path);
             }
+        }
+    }
+}
+
+class Worker extends Thread {
+    HttpRequest request;
+
+   HttpRequestHandler handler;
+
+    public Worker(HttpRequest request, HttpRequestHandler handler) {
+        this.request = request;
+        this.handler = handler;
+    }
+
+    @Override
+    public void run() {
+        try {
+            handler.doHandle(request);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
