@@ -6,6 +6,7 @@ import com.wkf.annotation.RequestRouter;
 import com.wkf.constant.Constant;
 import com.wkf.handler.DefaultHandler;
 import com.wkf.request.HttpRequest;
+import com.wkf.util.Dog;
 import com.wkf.util.Json;
 
 import java.io.File;
@@ -18,7 +19,8 @@ public class DefaultRouter implements Constant {
     }
 
     @RequestMetadata(path = "/index", method = "GET")
-    public void index(HttpRequest request) throws Exception {
+    public void index(HttpRequest request, Dog dog) throws Exception {
+        System.out.println(dog);
         new DefaultHandler().doHandle(request);
     }
 

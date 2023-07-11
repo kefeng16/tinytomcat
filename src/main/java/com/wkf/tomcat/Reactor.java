@@ -1,7 +1,8 @@
 package com.wkf.tomcat;
 
-import com.sun.net.httpserver.HttpHandler;
+import com.wkf.annotation.AutoCompleteEnable;
 import com.wkf.annotation.RequestMetadata;
+import com.wkf.annotation.RequestParameter;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.Http500Handler;
 import com.wkf.handler.HttpRequestHandler;
@@ -53,6 +54,7 @@ public class Reactor extends Thread {
         }
         Method[] methods = DefaultRouter.class.getMethods();
         DefaultRouter router = new DefaultRouter();
+
         for (Method method : methods) {
             if (method.isAnnotationPresent(RequestMetadata.class)) {
                 HttpRequestHandler handler = new HttpRequestHandler() {
@@ -75,7 +77,27 @@ public class Reactor extends Thread {
 
                     @Override
                     public void doHandle(HttpRequest request) throws Exception {
-                        method.invoke(router, request);
+                        Object[] paramList = new Object[method.getParameterCount()];
+                        var params = method.getParameterTypes();
+                        int index = 1;
+                        for (int i=1; i<params.length; i++){
+                            var p = params[i];
+                            if (!p.isAnnotationPresent(RequestParameter.class)) continue;
+                            var param = p.getConstructor().newInstance();
+                            var fields = param.getClass().getFields();
+                            for(var field: fields){
+                                if (!field.isAnnotationPresent(AutoCompleteEnable.class)) continue;
+                                if (field.getType().isAssignableFrom(String.class)){
+                                    field.set(param, request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id()));
+                                }
+                                if (field.getType().isAssignableFrom(int.class)){
+                                    field.set(param, Integer.valueOf(request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id())));
+                                }
+                            }
+                            paramList[index++] = param;
+                        }
+                        paramList[0] = request;
+                        method.invoke(router, paramList);
                     }
 
                     @Override
@@ -152,11 +174,8 @@ public class Reactor extends Thread {
                 for (SelectionKey key : keys) {
                     SocketChannel connection = (SocketChannel) key.channel();
                     if (connection != null) {
-                        if (readMapping.get(connection) == null) {
-                            readMapping.put(connection, new StringBuilder());
-                        }
                         try {
-                            doRW(connection, readMapping.get(connection));
+                            doRW(connection, new StringBuilder());
                         } catch (Exception e) {
                             try {
                                 connection.close();
@@ -182,7 +201,6 @@ public class Reactor extends Thread {
                 if (n < 0) {
                     logger.info("connection closed: {}", connection.getRemoteAddress());
                     connection.keyFor(selector).cancel();
-                    readMapping.remove(connection);
                     break;
                 }
                 buffer.flip();
@@ -211,12 +229,7 @@ public class Reactor extends Thread {
             boolean done = false;
             for (var h : httpHandles) {
                 if (h.hit(request)) {
-                    try {
-                       new Worker(request, h).start();
-                    } catch (Exception e) {
-                        logger.error("{}", e.toString());
-                        new Http500Handler(e).doHandle(request);
-                    }
+                    new Worker(request, h).start();
                     done = true;
                     break;
                 }
@@ -232,7 +245,7 @@ public class Reactor extends Thread {
 class Worker extends Thread {
     HttpRequest request;
 
-   HttpRequestHandler handler;
+    HttpRequestHandler handler;
 
     public Worker(HttpRequest request, HttpRequestHandler handler) {
         this.request = request;
@@ -244,7 +257,11 @@ class Worker extends Thread {
         try {
             handler.doHandle(request);
         } catch (Exception e) {
-            e.printStackTrace();
+            try {
+                new Http500Handler(e).doHandle(request);
+            } catch (Exception ex) {
+                e.printStackTrace();
+            }
         }
     }
 }
