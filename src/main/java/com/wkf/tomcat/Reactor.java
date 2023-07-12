@@ -9,6 +9,8 @@ import com.wkf.handler.HttpRequestHandler;
 import com.wkf.request.HttpRequest;
 import com.wkf.request.HttpRequestHeader;
 import com.wkf.service.DefaultRouter;
+import com.wkf.util.Dog;
+import com.wkf.util.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +26,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static com.wkf.request.HttpRequest.GET;
+import static com.wkf.request.HttpRequest.POST;
 
 public class Reactor extends Thread {
 
@@ -77,26 +82,8 @@ public class Reactor extends Thread {
 
                     @Override
                     public void doHandle(HttpRequest request) throws Exception {
-                        Object[] paramList = new Object[method.getParameterCount()];
-                        var params = method.getParameterTypes();
-                        int index = 1;
-                        for (int i=1; i<params.length; i++){
-                            var p = params[i];
-                            if (!p.isAnnotationPresent(RequestParameter.class)) continue;
-                            var param = p.getConstructor().newInstance();
-                            var fields = param.getClass().getFields();
-                            for(var field: fields){
-                                if (!field.isAnnotationPresent(AutoCompleteEnable.class)) continue;
-                                if (field.getType().isAssignableFrom(String.class)){
-                                    field.set(param, request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id()));
-                                }
-                                if (field.getType().isAssignableFrom(int.class)){
-                                    field.set(param, Integer.valueOf(request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id())));
-                                }
-                            }
-                            paramList[index++] = param;
-                        }
-                        paramList[0] = request;
+                        Object[] paramList = generateParamList(request, method);
+
                         method.invoke(router, paramList);
                     }
 
@@ -153,6 +140,47 @@ public class Reactor extends Thread {
         }
     }
 
+
+    public Object[] generateParamList(HttpRequest request, Method method) throws Exception {
+        Object[] paramList = new Object[method.getParameterCount()];
+        paramList[0] = request;
+        switch (request.requestMethod){
+            case GET:{
+                var params = method.getParameterTypes();
+                int index = 1;
+                for (int i=1; i<params.length; i++){
+                    var param = params[i];
+                    if (!param.isAnnotationPresent(RequestParameter.class)) continue;
+                    var paramInstance = param.getConstructor().newInstance();
+                    var fields = paramInstance.getClass().getFields();
+                    for(var field: fields){
+                        if (!field.isAnnotationPresent(AutoCompleteEnable.class)) continue;
+                        if (field.getType().isAssignableFrom(String.class)){
+                            field.set(paramInstance, request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id()));
+                        }
+                        if (field.getType().isAssignableFrom(int.class)){
+                            field.set(paramInstance, Integer.valueOf(request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id())));
+                        }
+                    }
+                    paramList[index++] = paramInstance;
+                }
+                break;
+            }
+            case POST:{
+                if (request.getHeaders().get("Content-Type").contains("json")) {
+                    String json = request.getRequestBodyString();
+                    if (json == null) return paramList;
+                    var params = method.getParameterTypes();
+                    var param = params[1];
+                    if (!param.isAnnotationPresent(RequestParameter.class)) return paramList;
+                    var paramInstance = param.getConstructor().newInstance();
+                    paramList[1] = Json.unmarshal(json, paramInstance.getClass());
+                }
+                break;
+            }
+        }
+        return paramList;
+    }
     class RWHandler implements Runnable {
         Map<SocketChannel, StringBuilder> readMapping = new HashMap<>(256);
         private Selector selector;
@@ -240,7 +268,9 @@ public class Reactor extends Thread {
             }
         }
     }
+
 }
+
 
 class Worker extends Thread {
     HttpRequest request;

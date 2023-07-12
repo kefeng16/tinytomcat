@@ -8,5 +8,10 @@ public class Json {
         return new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(o);
     }
 
+    public static <T> T unmarshal(String json, Class<T> clazz) throws Exception{
+        T t = new ObjectMapper().readValue(json, clazz);
+        return t;
+    }
+
 
 }

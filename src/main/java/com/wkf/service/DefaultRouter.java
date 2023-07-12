@@ -6,8 +6,10 @@ import com.wkf.annotation.RequestRouter;
 import com.wkf.constant.Constant;
 import com.wkf.handler.DefaultHandler;
 import com.wkf.request.HttpRequest;
+import com.wkf.util.Cat;
 import com.wkf.util.Dog;
 import com.wkf.util.Json;
+import com.wkf.util.Query;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -19,18 +21,21 @@ public class DefaultRouter implements Constant {
     }
 
     @RequestMetadata(path = "/index", method = "GET")
-    public void index(HttpRequest request, Dog dog) throws Exception {
+    public void index(HttpRequest request, Dog dog, Cat cat) throws Exception {
         System.out.println(dog);
+        System.out.println(cat);
         new DefaultHandler().doHandle(request);
     }
 
     @RequestMetadata(path = "/", method = "GET")
     public void index0(HttpRequest request) throws Exception {
+
         new DefaultHandler().doHandle(request);
     }
 
     @RequestMetadata(path = "/login", method = "POST")
-    public void login1(HttpRequest request) throws Exception {
+    public void login1(HttpRequest request, Query d) throws Exception {
+        System.out.println(d);
         request.writeJsonResponse(new ObjectMapper().writeValueAsString(request));
     }
 
