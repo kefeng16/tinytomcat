@@ -5,9 +5,9 @@ import com.wkf.annotation.RequestParameter;
 
 @RequestParameter
 public class Cat {
-    @AutoCompleteEnable(id="food")
+    @AutoCompleteEnable(id = "food")
     public String food;
-    @AutoCompleteEnable(id="master")
+    @AutoCompleteEnable(id = "master")
     public String master;
 
     @Override

@@ -2,6 +2,8 @@ package com.wkf.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wkf.request.HttpRequest;
+import com.wkf.response.HttpResponse;
+import com.wkf.util.Json;
 
 import java.nio.ByteBuffer;
 
@@ -13,24 +15,13 @@ public class Http500Handler implements HttpRequestHandler {
     }
 
     @Override
-    public void doGet(HttpRequest request) throws Exception {
-        String html = "<h1>HTTP 500 Internal Server Error</h1>";
-        String response = html + "<code>" + new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(exception) + "</code>";
-        request.channel.write(ByteBuffer.wrap(String.format(serverErrorResponse, response.length(), response).getBytes()));
-    }
-
-    @Override
-    public void doPost(HttpRequest request) throws Exception {
-        doGet(request);
-    }
-
-    @Override
     public boolean hit(HttpRequest request) {
         return false;
     }
 
     @Override
-    public void doHandle(HttpRequest request) throws Exception {
-        doGet(request);
+    public void doHandle(HttpRequest request, HttpResponse response) throws Exception {
+        String resp = "<h1>HTTP 500 Internal Server Error</h1>" + "<code>" + Json.marshal(exception) + "</code>";
+        response.getChannel().write(ByteBuffer.wrap(String.format(serverErrorResponse, resp.length(), resp).getBytes()));
     }
 }

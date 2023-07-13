@@ -4,37 +4,24 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wkf.constant.Constant;
 import com.wkf.exception.ParseHttpException;
-import com.wkf.handler.Http400Handler;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 public class HttpRequest implements Constant {
-    @JsonIgnore
-    public static final String GET = "GET";
-    @JsonIgnore
-    public static final String POST = "POST";
     @JsonInclude
-    public String requestMethod;
+    private String requestMethod;
     @JsonInclude
-    public HttpRequestHeader requestHeader;
+    private HttpRequestHeader requestHeader;
     @JsonIgnore
-    public HttpRequestBody requestBody;
+    private HttpRequestBody requestBody;
     @JsonIgnore
-    public SocketChannel channel;
-    @JsonIgnore
-    public String cookie;
-    @JsonInclude
-    public Map<String, Object> session = new HashMap<>(32);
+    private SocketChannel channel;
 
     public HttpRequest() {
     }
@@ -83,11 +70,10 @@ public class HttpRequest implements Constant {
         return r;
     }
 
-    public static HttpRequest decodeHttpRequest(HttpRequestHeader header, SocketChannel channel, ByteBuffer buf, Map<String, Object> session) throws IOException {
+    public static HttpRequest decodeHttpRequest(HttpRequestHeader header, SocketChannel channel, ByteBuffer buf) throws IOException {
         HttpRequest httpRequest = new HttpRequest();
         httpRequest.channel = channel;
         httpRequest.requestHeader = header;
-        httpRequest.session = session;
         switch (header.method) {
             case GET:
                 httpRequest.requestMethod = GET;
@@ -125,185 +111,13 @@ public class HttpRequest implements Constant {
         return httpRequest;
     }
 
-    public void writeJsonResponse(String response) throws Exception {
-        if (cookie == null) {
-            channel.write(ByteBuffer.wrap(String.format(json200Template, response.length(), response).getBytes()));
-        } else {
-            channel.write(ByteBuffer.wrap(String.format(json200TemplateWithCookie, response.length(), String.format("Set-Cookie: %s", cookie), response).getBytes()));
-        }
-    }
-
-    public void writeJsonResponse(byte[] response) throws Exception {
-        if (response == null) throw new Exception("data is null");
-        String header = String.format(json200ResponseHeader, response.length);
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(response));
-    }
-
-    public void writeHtmlResponse(String response) throws Exception {
-        channel.write(ByteBuffer.wrap(String.format(html200Template, response.length(), response).getBytes()));
-    }
-
-    public void writeHtmlResponse(byte[] response) throws Exception {
-        if (response == null) throw new Exception("data is null");
-        String header = String.format(html200ResponseHeader, response.length);
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(response));
-    }
-
-    public void writeCssResponse(String response) throws Exception {
-        channel.write(ByteBuffer.wrap(String.format(css200Template, response.length(), response).getBytes()));
-    }
-
-    public void writeCssResponse(byte[] response) throws Exception {
-        if (response == null) throw new Exception("data is null");
-        String header = String.format(css200ResponseHeader, response.length);
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(response));
-    }
-
-    public void writeJsResponse(String response) throws Exception {
-        channel.write(ByteBuffer.wrap(String.format(js200Template, response.length(), response).getBytes()));
-    }
-
-    public void writeJsResponse(byte[] response) throws Exception {
-        if (response == null) throw new Exception("data is null");
-        String header = String.format(js200ResponseHeader, response.length);
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(response));
-    }
-
-    public void writeBinaryResponse(byte[] response) throws Exception {
-        if (response == null) throw new Exception("binary data is null");
-        String header = String.format(binary200ResponseHeader, response.length);
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(response));
-    }
-
-    public void writeBinaryResponse(String path) throws Exception {
-        FileInputStream stream = new FileInputStream(Constant.downloadPathPrefix + path);
-        FileChannel fileChannel = stream.getChannel();
-        File file = new File(Constant.downloadPathPrefix + path);
-        long size = file.length(), remaining = file.length();
-        String header = String.format(binary200ResponseHeader, size, file.getName());
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        while (remaining > 0) {
-            long n = fileChannel.transferTo(0, size, channel);
-            if (n <= 0)
-                break;
-            remaining -= n;
-        }
-    }
-
-    public void writeCommonResponseWithCookie(String headerTemplate, String path, String c) throws Exception {
-        try {
-            FileInputStream stream = new FileInputStream(path);
-            FileChannel fileChannel = stream.getChannel();
-            File file = new File(path);
-            long size = file.length(), remaining = file.length();
-            String cookie = "Set-Cookie: " + c;
-            String header = String.format(headerTemplate, size, cookie);
-            channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-            while (remaining > 0) {
-                long n = fileChannel.transferTo(0, size, channel);
-                if (n <= 0)
-                    break;
-                remaining -= n;
-            }
-            fileChannel.close();
-        } catch (Exception e) {
-            new Http400Handler().doHandle(this);
-        }
-    }
-
-    public void writeCommonResponse(String headerTemplate, String path) throws Exception {
-        try {
-            FileInputStream stream = new FileInputStream(path);
-            FileChannel fileChannel = stream.getChannel();
-            File file = new File(path);
-            long size = file.length(), remaining = file.length();
-            String header = String.format(headerTemplate, size);
-            channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-            while (remaining > 0) {
-                long n = fileChannel.transferTo(0, size, channel);
-                if (n <= 0)
-                    break;
-                remaining -= n;
-            }
-            fileChannel.close();
-        } catch (Exception e) {
-            new Http400Handler().doHandle(this);
-        }
-    }
-
-    public void writeCommonHtmlResponse(String path) throws Exception {
-        if (cookie == null) {
-            writeCommonResponse(html200ResponseHeader, path);
-        } else {
-            writeCommonResponseWithCookie(html200ResponseHeaderWithCookie, path, cookie);
-        }
-    }
-
-
-    public void writeCommonCssResponse(String path) throws Exception {
-        writeCommonResponse(css200ResponseHeader, path);
-    }
-
-    public void writeCommonJsResponse(String path) throws Exception {
-        writeCommonResponse(js200ResponseHeader, path);
-    }
-
     public String getRequestCookie() {
         return requestHeader.header.get("Cookie");
-    }
-
-    public void setCookie(String cookie) {
-        this.cookie = cookie;
-    }
-
-    public void writeCommonImageResponse(String path) throws Exception {
-        String suffix = "";
-        if (path.endsWith("png")) {
-            suffix = "png";
-        } else if (path.endsWith("jpeg")) {
-            suffix = "jpeg";
-        } else if (path.endsWith("gif")) {
-            suffix = "gif";
-        } else if (path.endsWith("webp")) {
-            suffix = "webp";
-        } else {
-            throw new Exception("invaild image request");
-        }
-        try {
-            FileInputStream stream = new FileInputStream(path);
-            FileChannel fileChannel = stream.getChannel();
-            File file = new File(path);
-            long size = file.length(), remaining = file.length();
-            String header = String.format(image200ResponseHeader, size, suffix);
-            channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-            while (remaining > 0) {
-                long n = fileChannel.transferTo(0, size, channel);
-                if (n <= 0)
-                    break;
-                remaining -= n;
-            }
-            fileChannel.close();
-        } catch (Exception e) {
-            new Http400Handler().doHandle(this);
-        }
     }
 
     @JsonIgnore
     public String getURLQuery(String key) {
         return requestHeader.query.get(key);
-    }
-
-    public <T> void setSession(String key, T value) {
-        session.put(key, value);
-    }
-
-    public <T> T getSession(String key) {
-        return (T) session.get(key);
     }
 
     @JsonIgnore
@@ -323,12 +137,27 @@ public class HttpRequest implements Constant {
         return new String(requestBody.body, StandardCharsets.UTF_8);
     }
 
+    public String getRequestMethod() {
+        return requestMethod;
+    }
+
+    public HttpRequestHeader getRequestHeader() {
+        return requestHeader;
+    }
+
+    public HttpRequestBody getRequestBody() {
+        return requestBody;
+    }
+
+    public SocketChannel getChannel() {
+        return channel;
+    }
+
+
     @Override
     public String toString() {
         return "HttpRequest{" +
                 "requestHeader=" + requestHeader +
-                ", cookie='" + cookie + '\'' +
-                ", session=" + session +
                 '}';
     }
 }

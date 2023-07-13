@@ -4,12 +4,11 @@ import com.wkf.annotation.AutoCompleteEnable;
 import com.wkf.annotation.RequestMetadata;
 import com.wkf.annotation.RequestParameter;
 import com.wkf.handler.Http400Handler;
-import com.wkf.handler.Http500Handler;
 import com.wkf.handler.HttpRequestHandler;
 import com.wkf.request.HttpRequest;
 import com.wkf.request.HttpRequestHeader;
+import com.wkf.response.HttpResponse;
 import com.wkf.service.DefaultRouter;
-import com.wkf.util.Dog;
 import com.wkf.util.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +48,7 @@ public class Reactor extends Thread {
         // 非阻塞
         serverSocket.configureBlocking(false);
         serverSocket.bind(new InetSocketAddress(port));
-
         serverSocket.register(accSelector, SelectionKey.OP_ACCEPT);
-
         rwSelectors = new Selector[subSelectorN];
         for (int i = 0; i < subSelectorN; i++) {
             rwSelectors[i] = Selector.open();
@@ -63,27 +60,17 @@ public class Reactor extends Thread {
         for (Method method : methods) {
             if (method.isAnnotationPresent(RequestMetadata.class)) {
                 HttpRequestHandler handler = new HttpRequestHandler() {
-                    @Override
-                    public void doGet(HttpRequest request) throws Exception {
-                        method.invoke(router, request);
-                    }
-
-                    @Override
-                    public void doPost(HttpRequest request) throws Exception {
-                        method.invoke(router, request);
-                    }
 
                     @Override
                     public boolean hit(HttpRequest request) {
                         String requestMethod = method.getAnnotation(RequestMetadata.class).method();
                         String requestPath = method.getAnnotation(RequestMetadata.class).path();
-                        return requestPath.equals(request.requestHeader.path) && requestMethod.equals(request.requestHeader.method);
+                        return requestPath.equals(request.getRequestHeader().path) && requestMethod.equals(request.getRequestHeader().method);
                     }
 
                     @Override
-                    public void doHandle(HttpRequest request) throws Exception {
-                        Object[] paramList = generateParamList(request, method);
-
+                    public void doHandle(HttpRequest request, HttpResponse response) throws Exception {
+                        Object[] paramList = generateParamList(request, response, method);
                         method.invoke(router, paramList);
                     }
 
@@ -141,24 +128,25 @@ public class Reactor extends Thread {
     }
 
 
-    public Object[] generateParamList(HttpRequest request, Method method) throws Exception {
+    public Object[] generateParamList(HttpRequest request, HttpResponse response, Method method) throws Exception {
         Object[] paramList = new Object[method.getParameterCount()];
         paramList[0] = request;
-        switch (request.requestMethod){
-            case GET:{
+        paramList[1] = response;
+        switch (request.getRequestMethod()) {
+            case GET: {
                 var params = method.getParameterTypes();
-                int index = 1;
-                for (int i=1; i<params.length; i++){
+                int index = 2;
+                for (int i = index; i < params.length; i++) {
                     var param = params[i];
                     if (!param.isAnnotationPresent(RequestParameter.class)) continue;
                     var paramInstance = param.getConstructor().newInstance();
                     var fields = paramInstance.getClass().getFields();
-                    for(var field: fields){
+                    for (var field : fields) {
                         if (!field.isAnnotationPresent(AutoCompleteEnable.class)) continue;
-                        if (field.getType().isAssignableFrom(String.class)){
+                        if (field.getType().isAssignableFrom(String.class)) {
                             field.set(paramInstance, request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id()));
                         }
-                        if (field.getType().isAssignableFrom(int.class)){
+                        if (field.getType().isAssignableFrom(int.class)) {
                             field.set(paramInstance, Integer.valueOf(request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id())));
                         }
                     }
@@ -166,7 +154,7 @@ public class Reactor extends Thread {
                 }
                 break;
             }
-            case POST:{
+            case POST: {
                 if (request.getHeaders().get("Content-Type").contains("json")) {
                     String json = request.getRequestBodyString();
                     if (json == null) return paramList;
@@ -181,6 +169,7 @@ public class Reactor extends Thread {
         }
         return paramList;
     }
+
     class RWHandler implements Runnable {
         Map<SocketChannel, StringBuilder> readMapping = new HashMap<>(256);
         private Selector selector;
@@ -252,46 +241,22 @@ public class Reactor extends Thread {
                 sessionMap.put(connection, new HashMap<>(32));
             }
             HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
-            request = HttpRequest.decodeHttpRequest(httpHeader, connection, buffer, sessionMap.get(connection));
-            logger.info("new coming request: {} {}", request.requestHeader.method, request.requestHeader.path);
+            request = HttpRequest.decodeHttpRequest(httpHeader, connection, buffer);
+            HttpResponse response = new HttpResponse(connection);
+            logger.info("new coming request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
             boolean done = false;
-            for (var h : httpHandles) {
-                if (h.hit(request)) {
-                    new Worker(request, h).start();
+            for (var handler : httpHandles) {
+                if (handler.hit(request)) {
+                    new Worker(request, response, handler).start();
                     done = true;
                     break;
                 }
             }
             if (!done) {
-                new Http400Handler().doHandle(request);
-                logger.error("no mapping handler for request: {} {}", request.requestHeader.method, request.requestHeader.path);
+                new Http400Handler().doHandle(request, response);
+                logger.error("no mapping handler for request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
             }
         }
     }
 
-}
-
-
-class Worker extends Thread {
-    HttpRequest request;
-
-    HttpRequestHandler handler;
-
-    public Worker(HttpRequest request, HttpRequestHandler handler) {
-        this.request = request;
-        this.handler = handler;
-    }
-
-    @Override
-    public void run() {
-        try {
-            handler.doHandle(request);
-        } catch (Exception e) {
-            try {
-                new Http500Handler(e).doHandle(request);
-            } catch (Exception ex) {
-                e.printStackTrace();
-            }
-        }
-    }
 }

@@ -5,11 +5,10 @@ import com.wkf.annotation.RequestParameter;
 
 @RequestParameter
 public class Dog {
-    @AutoCompleteEnable(id="name")
+    @AutoCompleteEnable(id = "name")
     public String name;
-    @AutoCompleteEnable(id="age")
+    @AutoCompleteEnable(id = "age")
     public int age;
-
 
 
     @Override
