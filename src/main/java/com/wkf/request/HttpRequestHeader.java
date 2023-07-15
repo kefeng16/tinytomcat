@@ -17,14 +17,52 @@ public class HttpRequestHeader {
     @JsonInclude
     public Map<String, String> header = new HashMap<>(32);
 
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public Map<String, String> getQuery() {
+        return query;
+    }
+
+    public void setQuery(Map<String, String> query) {
+        this.query = query;
+    }
+
+    public Map<String, String> getHeader() {
+        return header;
+    }
+
+    public void setHeader(Map<String, String> header) {
+        this.header = header;
+    }
+
     @Override
     public String toString() {
         return "HttpRequestHeader{" +
                 "method='" + method + '\'' +
                 ", path='" + path + '\'' +
                 ", version='" + version + '\'' +
-                ", query=" + query +
-                ", header=" + header +
                 '}';
     }
 }

@@ -1,0 +1,27 @@
+package com.wkf.handler;
+
+import com.wkf.request.HttpRequest;
+import com.wkf.response.HttpResponse;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+public class StaticFilesHandler implements HttpRequestHandler {
+
+    public Set<String> allowdFileTypes = new HashSet<>(Arrays.asList("html", "png", "jpeg", "webp", "js", "css", "jpg"));
+
+    @Override
+    public boolean hit(HttpRequest request) {
+        String path = request.getRequestHeader().path;
+        String[] split = path.split("\\.");
+        String type = split[split.length - 1];
+        return allowdFileTypes.contains(type) && request.getRequestHeader().getMethod().equals(GET);
+    }
+
+    @Override
+    public void doHandle(HttpRequest request, HttpResponse response) throws Exception {
+        response.writeBinary(root + request.getRequestHeader().getPath());
+    }
+}
+

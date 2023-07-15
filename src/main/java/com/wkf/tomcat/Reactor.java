@@ -5,6 +5,7 @@ import com.wkf.annotation.RequestMetadata;
 import com.wkf.annotation.RequestParameter;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.HttpRequestHandler;
+import com.wkf.handler.StaticFilesHandler;
 import com.wkf.request.HttpRequest;
 import com.wkf.request.HttpRequestHeader;
 import com.wkf.response.HttpResponse;
@@ -82,6 +83,7 @@ public class Reactor extends Thread {
                 httpHandles.add(handler);
             }
         }
+        httpHandles.add(new StaticFilesHandler());
         logger.info("Init done. Lintening on localhost:{}", port);
     }
 
@@ -155,14 +157,15 @@ public class Reactor extends Thread {
                 break;
             }
             case POST: {
-                if (request.getHeaders().get("Content-Type").contains("json")) {
+                var contentType = request.getHeaders().get("Content-Type");
+                if (contentType != null && contentType.contains("json")) {
                     String json = request.getRequestBodyString();
                     if (json == null) return paramList;
                     var params = method.getParameterTypes();
-                    var param = params[1];
+                    var param = params[2];
                     if (!param.isAnnotationPresent(RequestParameter.class)) return paramList;
                     var paramInstance = param.getConstructor().newInstance();
-                    paramList[1] = Json.unmarshal(json, paramInstance.getClass());
+                    paramList[2] = Json.unmarshal(json, paramInstance.getClass());
                 }
                 break;
             }
@@ -243,7 +246,7 @@ public class Reactor extends Thread {
             HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
             request = HttpRequest.decodeHttpRequest(httpHeader, connection, buffer);
             HttpResponse response = new HttpResponse(connection);
-            logger.info("new coming request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
+            logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
             boolean done = false;
             for (var handler : httpHandles) {
                 if (handler.hit(request)) {

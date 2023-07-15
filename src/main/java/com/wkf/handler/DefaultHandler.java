@@ -11,6 +11,6 @@ public class DefaultHandler implements HttpRequestHandler {
 
     @Override
     public void doHandle(HttpRequest request, HttpResponse response) throws Exception {
-        response.writeBinary("/Users/kefeng/pages/index.html");
+        response.writeBinary(root + "index.html");
     }
 }

@@ -1,6 +1,5 @@
 package com.wkf.handler;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wkf.request.HttpRequest;
 import com.wkf.response.HttpResponse;
 import com.wkf.util.Json;
