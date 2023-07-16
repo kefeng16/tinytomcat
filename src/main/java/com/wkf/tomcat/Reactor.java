@@ -10,6 +10,7 @@ import com.wkf.request.HttpRequest;
 import com.wkf.request.HttpRequestHeader;
 import com.wkf.response.HttpResponse;
 import com.wkf.service.DefaultRouter;
+import com.wkf.threadpool.ThreadPool;
 import com.wkf.util.Json;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,8 +25,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static com.wkf.request.HttpRequest.GET;
 import static com.wkf.request.HttpRequest.POST;
@@ -37,13 +36,16 @@ public class Reactor extends Thread {
     public List<HttpRequestHandler> httpHandles = new ArrayList<>();
     Selector accSelector = Selector.open();
     Selector[] rwSelectors = null;
-    ExecutorService service = Executors.newFixedThreadPool(4);
+    //    ExecutorService service = Executors.newFixedThreadPool(4);
     Logger logger = LoggerFactory.getLogger(TAG);
     private Map<SocketChannel, Map<String, Object>> sessionMap = new ConcurrentHashMap<>(256);
     private int selectIndex = 0;
     private int subSelectorN = 4;
 
-    public Reactor(int port) throws Exception {
+    private ThreadPool threadPool;
+
+    public Reactor(int port, ThreadPool pool) throws Exception {
+        threadPool = pool;
         // Reactor初始化
         serverSocket = ServerSocketChannel.open();
         // 非阻塞
@@ -53,11 +55,11 @@ public class Reactor extends Thread {
         rwSelectors = new Selector[subSelectorN];
         for (int i = 0; i < subSelectorN; i++) {
             rwSelectors[i] = Selector.open();
-            service.submit(new RWHandler(rwSelectors[i]));
+            threadPool.execute(new RWHandler(rwSelectors[i]));
         }
+
         Method[] methods = DefaultRouter.class.getMethods();
         DefaultRouter router = new DefaultRouter();
-
         for (Method method : methods) {
             if (method.isAnnotationPresent(RequestMetadata.class)) {
                 HttpRequestHandler handler = new HttpRequestHandler() {
@@ -210,7 +212,7 @@ public class Reactor extends Thread {
         }
 
         public void doRW(SocketChannel connection, StringBuilder builder) throws Exception {
-            HttpRequest request = null;
+
             if (connection == null)
                 return;
             StringBuilder header = builder;
@@ -244,13 +246,14 @@ public class Reactor extends Thread {
                 sessionMap.put(connection, new HashMap<>(32));
             }
             HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
-            request = HttpRequest.decodeHttpRequest(httpHeader, connection, buffer);
+            HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, connection, buffer);
+            request.getRequestParam("name");
             HttpResponse response = new HttpResponse(connection);
             logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
             boolean done = false;
             for (var handler : httpHandles) {
                 if (handler.hit(request)) {
-                    new Worker(request, response, handler).start();
+                    threadPool.execute(new Worker(request, response, handler));
                     done = true;
                     break;
                 }

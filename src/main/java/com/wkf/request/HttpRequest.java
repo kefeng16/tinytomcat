@@ -4,13 +4,19 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wkf.constant.Constant;
 import com.wkf.exception.ParseHttpException;
+import com.wkf.util.DynamicByteArray;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 public class HttpRequest implements Constant {
@@ -145,6 +151,62 @@ public class HttpRequest implements Constant {
         return requestHeader;
     }
 
+    public String getRequestParam(String key) {
+        var type = getRequestHeader().getHeaderValue("Content-Type");
+        if (type.contains("x-www-form-urlencoded")) {
+            String body = getRequestBodyString();
+            if (body == null || body.equals("")) return "";
+            var parts = body.split("\\&");
+            for (var part : parts) {
+                var kv = part.split("\\=");
+                if (kv.length != 2) continue;
+                kv[0] = URLDecoder.decode(kv[0], StandardCharsets.UTF_8);
+                kv[1] = URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+                if (kv[0].equals(key)) return kv[1];
+            }
+        } else if (type.contains("multipart/form-data")) {
+            String boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
+            int index = type.indexOf("boundary=");
+            if (index != -1) {
+                boundary = type.substring(index + 9);
+
+            }
+
+
+        }
+        return "";
+    }
+
+    // boundary = boundary + \r\n
+    public void parseMultipartForm(InputStream content, byte[] boundary) throws Exception {
+        byte[] buf = new byte[boundary.length + 2];
+        for (int i = 0; i < buf.length; i++) {
+            content.read();
+        }
+        int index = 0, ch = 0;
+        List<byte[]> parts = new ArrayList<>();
+        while (ch != -1) {
+            DynamicByteArray vector = new DynamicByteArray();
+            while (!Arrays.equals(buf, boundary)) {
+                ch = content.read();
+                if (ch == -1) break;
+                if (index >= buf.length) {
+                    // fifo: ++- ->  +--
+                    for (int i = 0; i < buf.length - 1; i++) {
+                        buf[i] = buf[i + 1];
+                    }
+                }
+                vector.write((byte)ch);
+                //  ch:=x;->buf: +-x
+                buf[(index++) % buf.length] = (byte) ch;
+            }
+            if (vector.size() <= boundary.length) {
+                throw new ParseHttpException("illeagl request body");
+            }
+            parts.add(vector.toByteArray(0, vector.size() - boundary.length));
+        }
+    }
+
     public HttpRequestBody getRequestBody() {
         return requestBody;
     }
@@ -152,7 +214,6 @@ public class HttpRequest implements Constant {
     public SocketChannel getChannel() {
         return channel;
     }
-
 
     @Override
     public String toString() {

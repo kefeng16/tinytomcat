@@ -57,6 +57,10 @@ public class HttpRequestHeader {
         this.header = header;
     }
 
+    public String getHeaderValue(String key) {
+        return header.get(key);
+    }
+
     @Override
     public String toString() {
         return "HttpRequestHeader{" +
