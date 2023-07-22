@@ -4,9 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wkf.constant.Constant;
 import com.wkf.exception.ParseHttpException;
-import com.wkf.util.DynamicByteArray;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
@@ -168,39 +166,49 @@ public class HttpRequest implements Constant {
             String boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
             int index = type.indexOf("boundary=");
             if (index != -1) {
-                boundary = type.substring(index + 9);
-
+                boundary = "--" + type.substring(index + 9);
+                try {
+                    parseMultipartForm(requestBody.body, boundary.getBytes(StandardCharsets.UTF_8));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             }
-
-
         }
         return "";
     }
 
     public void parseMultipartForm(byte[] content, byte[] boundary) throws Exception {
         List<MultipartForm> parts = new ArrayList<>(4);
-        int index = boundary.length + 2, a = 0, b = 0, size = 0;
-        int begin = 0, cur = index + 1;
+        int index = boundary.length + 1, a = 0, b = 0, c = 0, size = 0;
+        int cur = index + 1;
+        int offset = cur, length = 0;
         byte[] fifo = new byte[boundary.length];
         boolean inSearch = false;
         while (cur < content.length) {
             int ch = content[cur];
-            a = b;
-            b = ch;
+            char t = (char) ch;
+            a = b; b = c; c = ch;
             if (a == '\r' && b == '\n') {
                 inSearch = true;
                 size = 0;
             }
             if (inSearch) {
-                size++;
-                fifo[fifo.length - size] = (byte) ch;
-                if (size == boundary.length) {
+                if (size < fifo.length) {
+                    fifo[size++] = (byte) ch;
+                }
+                if (size == fifo.length) {
                     if (Arrays.equals(fifo, boundary)) {
-//                        MultipartForm form = new MultipartForm(boundary, content);
-//                        parts.add(form);
-                        begin = cur + 1;
-                        if (content[++cur] != '\r') return;
-                        if (content[++cur] != '\n') return;
+                        length = cur - offset - boundary.length + 1;
+                        new MultipartForm(boundary, content, offset, length);
+//                        parts.add();
+//                        System.out.print(new String(content, offset, length, StandardCharsets.UTF_8));
+                        char x = (char) content[++cur];
+                        char y = (char) content[++cur];
+                        if (x=='-' && y=='-') return;
+                        if (x != '\r') throw new ParseHttpException("bad MultipartForm");
+                        if (y != '\n') throw new ParseHttpException("bad MultipartForm");
+                        inSearch = false;
+                        offset = cur + 1;
                     } else {
                         inSearch = false;
                         size = 0;
