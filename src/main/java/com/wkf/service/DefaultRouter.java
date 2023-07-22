@@ -15,7 +15,6 @@ public class DefaultRouter implements Constant {
 
     @RequestMetadata(path = "/index", method = GET)
     public void index(HttpRequest request, HttpResponse response) throws Exception {
-        System.out.println(request.getRequestParam("name"));
         new DefaultHandler().doHandle(request, response);
     }
 
@@ -26,7 +25,6 @@ public class DefaultRouter implements Constant {
 
     @RequestMetadata(path = "/cat", method = POST)
     public void cat(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
-//        int i = 1/0;
         response.writeHtml("<h1>6666</h1>");
     }
 

@@ -212,7 +212,6 @@ public class Reactor extends Thread {
         }
 
         public void doRW(SocketChannel connection, StringBuilder builder) throws Exception {
-
             if (connection == null)
                 return;
             StringBuilder header = builder;

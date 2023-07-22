@@ -6,9 +6,8 @@ import com.wkf.constant.Constant;
 import com.wkf.exception.ParseHttpException;
 import com.wkf.util.DynamicByteArray;
 
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -153,6 +152,7 @@ public class HttpRequest implements Constant {
 
     public String getRequestParam(String key) {
         var type = getRequestHeader().getHeaderValue("Content-Type");
+        if (type == null) return null;
         if (type.contains("x-www-form-urlencoded")) {
             String body = getRequestBodyString();
             if (body == null || body.equals("")) return "";
@@ -177,33 +177,37 @@ public class HttpRequest implements Constant {
         return "";
     }
 
-    // boundary = boundary + \r\n
-    public void parseMultipartForm(InputStream content, byte[] boundary) throws Exception {
-        byte[] buf = new byte[boundary.length + 2];
-        for (int i = 0; i < buf.length; i++) {
-            content.read();
-        }
-        int index = 0, ch = 0;
-        List<byte[]> parts = new ArrayList<>();
-        while (ch != -1) {
-            DynamicByteArray vector = new DynamicByteArray();
-            while (!Arrays.equals(buf, boundary)) {
-                ch = content.read();
-                if (ch == -1) break;
-                if (index >= buf.length) {
-                    // fifo: ++- ->  +--
-                    for (int i = 0; i < buf.length - 1; i++) {
-                        buf[i] = buf[i + 1];
+    public void parseMultipartForm(byte[] content, byte[] boundary) throws Exception {
+        List<MultipartForm> parts = new ArrayList<>(4);
+        int index = boundary.length + 2, a = 0, b = 0, size = 0;
+        int begin = 0, cur = index + 1;
+        byte[] fifo = new byte[boundary.length];
+        boolean inSearch = false;
+        while (cur < content.length) {
+            int ch = content[cur];
+            a = b;
+            b = ch;
+            if (a == '\r' && b == '\n') {
+                inSearch = true;
+                size = 0;
+            }
+            if (inSearch) {
+                size++;
+                fifo[fifo.length - size] = (byte) ch;
+                if (size == boundary.length) {
+                    if (Arrays.equals(fifo, boundary)) {
+//                        MultipartForm form = new MultipartForm(boundary, content);
+//                        parts.add(form);
+                        begin = cur + 1;
+                        if (content[++cur] != '\r') return;
+                        if (content[++cur] != '\n') return;
+                    } else {
+                        inSearch = false;
+                        size = 0;
                     }
                 }
-                vector.write((byte)ch);
-                //  ch:=x;->buf: +-x
-                buf[(index++) % buf.length] = (byte) ch;
             }
-            if (vector.size() <= boundary.length) {
-                throw new ParseHttpException("illeagl request body");
-            }
-            parts.add(vector.toByteArray(0, vector.size() - boundary.length));
+            cur++;
         }
     }
 
