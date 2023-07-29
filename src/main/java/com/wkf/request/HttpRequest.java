@@ -170,7 +170,7 @@ public class HttpRequest implements Constant {
                 try {
                     parseMultipartForm(requestBody.body, boundary.getBytes(StandardCharsets.UTF_8));
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    e.printStackTrace();
                 }
             }
         }
@@ -188,7 +188,9 @@ public class HttpRequest implements Constant {
         while (cur < content.length) {
             int ch = content[cur];
             char t = (char) ch;
-            a = b; b = c; c = ch;
+            a = b;
+            b = c;
+            c = ch;
             if (a == '\r' && b == '\n') {
                 inSearch = true;
                 size = 0;
