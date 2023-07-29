@@ -178,6 +178,7 @@ public class HttpRequest implements Constant {
     }
 
     public void parseMultipartForm(byte[] content, byte[] boundary) throws Exception {
+        var form = new MultipartForm();
         List<MultipartForm> parts = new ArrayList<>(4);
         int index = boundary.length + 1, a = 0, b = 0, c = 0, size = 0;
         int cur = index + 1;
@@ -199,12 +200,10 @@ public class HttpRequest implements Constant {
                 if (size == fifo.length) {
                     if (Arrays.equals(fifo, boundary)) {
                         length = cur - offset - boundary.length + 1;
-                        new MultipartForm(boundary, content, offset, length);
-//                        parts.add();
-//                        System.out.print(new String(content, offset, length, StandardCharsets.UTF_8));
+                        form.add(new MultipartFormEntry(boundary, content, offset, length));
                         char x = (char) content[++cur];
                         char y = (char) content[++cur];
-                        if (x=='-' && y=='-') return;
+                        if (x == '-' && y == '-') return;
                         if (x != '\r') throw new ParseHttpException("bad MultipartForm");
                         if (y != '\n') throw new ParseHttpException("bad MultipartForm");
                         inSearch = false;
