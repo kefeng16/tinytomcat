@@ -6,6 +6,8 @@ import com.wkf.annotation.RequestParameter;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.HttpRequestHandler;
 import com.wkf.handler.StaticFilesHandler;
+import com.wkf.lock.ChannelTask;
+import com.wkf.lock.Synchronization;
 import com.wkf.request.HttpRequest;
 import com.wkf.request.HttpRequestHeader;
 import com.wkf.response.HttpResponse;
@@ -38,6 +40,7 @@ public class Reactor extends Thread {
     Selector[] rwSelectors = null;
     //    ExecutorService service = Executors.newFixedThreadPool(4);
     Logger logger = LoggerFactory.getLogger(TAG);
+    private Http400Handler default400 = new Http400Handler();
     private Map<SocketChannel, Map<String, Object>> sessionMap = new ConcurrentHashMap<>(256);
     private int selectIndex = 0;
     private int subSelectorN = 4;
@@ -195,72 +198,66 @@ public class Reactor extends Thread {
                 Set<SelectionKey> keys = selector.selectedKeys();
                 for (SelectionKey key : keys) {
                     SocketChannel connection = (SocketChannel) key.channel();
-                    if (connection != null) {
-                        try {
-                            doRW(connection, new StringBuilder());
-                        } catch (Exception e) {
-                            try {
-                                connection.close();
-                            } catch (IOException ex) {
-                                e.printStackTrace();
-                            }
-                        }
+                    if (connection == null) continue;
+                    try {
+                        readHttpRequest(connection);
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
                 keys.clear();
             }
         }
 
-        public void doRW(SocketChannel connection, StringBuilder builder) throws Exception {
-            if (connection == null)
-                return;
-            StringBuilder header = builder;
-            boolean finish = false;
-            while (!finish) {
-                buffer.clear();
-                int n = connection.read(buffer);
-                if (n < 0) {
-                    logger.info("connection closed: {}", connection.getRemoteAddress());
-                    connection.keyFor(selector).cancel();
-                    break;
-                }
-                buffer.flip();
-                while (buffer.hasRemaining()) {
-                    header.append((char) buffer.get());
-                    if (header.length() > 4) {
-                        if (header.substring(header.length() - 4, header.length()).equals("\r\n\r\n")) {
-                            finish = true;
-                            break;
+        public void readHttpRequest(SocketChannel connection) throws Exception {
+            if (connection == null) return;
+            Synchronization.threadSafetyFor(connection, (channel, args) -> {
+                StringBuilder header = new StringBuilder();
+                boolean finish = false;
+                while (!finish) {
+                    buffer.clear();
+                    int n = channel.read(buffer);
+                    if (n < 0) {
+                        logger.info("connection closed: {}", channel.getRemoteAddress());
+                        channel.keyFor(selector).cancel();
+                        break;
+                    }
+                    buffer.flip();
+                    while (buffer.hasRemaining()) {
+                        header.append((char) buffer.get());
+                        if (header.length() > 4) {
+                            if (header.substring(header.length() - 4, header.length()).equals("\r\n\r\n")) {
+                                finish = true;
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            String requestString = header.toString();
-            header.delete(0, header.length());
-            if (requestString.length() == 0) {
-                return;
-            }
-            Map<String, Object> session = sessionMap.get(connection);
-            if (session == null) {
-                sessionMap.put(connection, new HashMap<>(32));
-            }
-            HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
-            HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, connection, buffer);
-            request.getRequestParam("name");
-            HttpResponse response = new HttpResponse(connection);
-            logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
-            boolean done = false;
-            for (var handler : httpHandles) {
-                if (handler.hit(request)) {
-                    threadPool.execute(new Worker(request, response, handler));
-                    done = true;
-                    break;
+                String requestString = header.toString();
+                if (requestString.length() == 0) return false;
+                Map<String, Object> session = sessionMap.get(channel);
+                if (session == null) {
+                    sessionMap.put(channel, new HashMap<>(32));
                 }
-            }
-            if (!done) {
-                new Http400Handler().doHandle(request, response);
-                logger.error("no mapping handler for request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
-            }
+                HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
+                HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
+                //request.getRequestParam("name");
+                HttpResponse response = new HttpResponse(channel);
+                logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
+                boolean done = false;
+                for (var handler : httpHandles) {
+                    if (handler.hit(request)) {
+                        threadPool.execute(new Worker(request, response, handler));
+                        done = true;
+                        break;
+                    }
+                }
+                if (!done) {
+                    default400.doHandle(request, response);
+                    logger.error("no mapping handler for request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
+                }
+                return done;
+            });
         }
     }
 

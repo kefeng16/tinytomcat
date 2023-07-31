@@ -1,6 +1,5 @@
 package com.wkf.cron;
 
-import com.wkf.lock.ChannelTask;
 import com.wkf.lock.Synchronization;
 
 import java.io.IOException;
@@ -10,7 +9,7 @@ import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class IdleConnectionCleaner extends Thread implements ChannelTask {
+public class IdleConnectionCleaner extends Thread {
     private static final Map<SocketChannel, ConnectionTime> map;
     private static Queue<ConnectionTime> queue;
 
@@ -24,11 +23,13 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
     }
 
     public static void add(SocketChannel connection) {
-        synchronized (connection) {
-            var t = new ConnectionTime(System.currentTimeMillis(), connection);
-            map.put(connection, t);
-            queue.offer(t);
-        }
+        Synchronization.threadSafetyFor(connection, (SocketChannel channel, Object... args) -> {
+                    var t = new ConnectionTime(System.currentTimeMillis(), channel);
+                    map.put(channel, t);
+                    queue.offer(t);
+                    return true;
+                }
+        );
     }
 
     @Override
@@ -39,31 +40,25 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
             while (true) {
-                var connTime = queue.peek();
-                if (connTime == null) break;
-                if(!Synchronization.threadSafetyFor(connTime.getConnection(), this)) {
+                if (queue.peek() == null) break;
+                if (!Synchronization.threadSafetyFor(queue.peek().getConnection(), (SocketChannel channel, Object... args) -> {
+                    if (channel == null) return true;
+                    ConnectionTime conn = (ConnectionTime) args[0];
+                    if (System.currentTimeMillis() - conn.getLastRwAt() > 5 * 1000 * 60) {
+                        try {
+                            channel.close();
+                            queue.poll();
+                            return true;
+                        } catch (IOException e) {
+                            throw e;
+                        }
+                    } else {
+                        return false;
+                    }
+                }))
                     break;
-                }
             }
-        }
-    }
-
-    @Override
-    public boolean doTask(SocketChannel channel, Object... args) throws Exception {
-        if (channel == null) return true;
-        ConnectionTime connTime = (ConnectionTime) args[0];
-        if (System.currentTimeMillis() - connTime.getLastRwAt() > 5 * 1000 * 60) {
-            try {
-                channel.close();
-                queue.poll();
-                return true;
-            } catch (IOException e) {
-               throw e;
-            }
-        } else {
-            return false;
         }
     }
 

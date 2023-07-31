@@ -16,6 +16,5 @@ public class Http400Handler implements HttpRequestHandler {
     public void doHandle(HttpRequest request, HttpResponse response) throws Exception {
         String json = "<h1>404 Not Found</h1>";
         response.getChannel().write(ByteBuffer.wrap(String.format(notFoundResponse, json.length(), json).getBytes()));
-
     }
 }
