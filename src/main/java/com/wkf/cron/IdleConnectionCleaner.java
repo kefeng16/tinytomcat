@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -14,24 +16,34 @@ import static com.wkf.lock.Synchronization.threadSafetyFor;
 
 public class IdleConnectionCleaner extends Thread implements ChannelTask {
     private static final Queue<Connection> queue;
-
+    private static Map<SocketChannel, Connection> map;
     static {
         queue = new PriorityQueue<>((c1, c2) -> {
             long r = c1.getLastRwAt() - c2.getLastRwAt();
             if (r < 0) return -1;
             return 1;
         });
+        map = new HashMap<>();
     }
 
-    Logger logger = LoggerFactory.getLogger("");
+    Logger logger = LoggerFactory.getLogger("IdleConnectionCleaner");
 
-    public static void add(SocketChannel connection, Selector selector) {
-        threadSafetyFor(connection, (channel, _args) -> {
-                    var t = new Connection(System.currentTimeMillis(), channel, selector);
-                    queue.offer(t);
-                    return true;
-                }
-        );
+    public void add(SocketChannel connection, Selector selector) {
+        threadSafetyFor(connection, (channel, args) -> {
+            var t = new Connection(System.currentTimeMillis(), channel, selector);
+            queue.offer(t);
+            map.put(channel, t);
+            return true;
+        });
+    }
+
+    public void update(SocketChannel connection){
+        threadSafetyFor(connection, (channel, args) -> {
+            var conn = map.get(channel);
+            if (conn==null) return false;
+            conn.update();
+            return true;
+        });
     }
 
     @Override
@@ -56,11 +68,12 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
         if (channel == null) return false;
         Connection connection = (Connection) args[0];
         Selector selector = connection.getSelector();
-        if (System.currentTimeMillis() - connection.getLastRwAt() > 1000 * 30) {
+        if (System.currentTimeMillis() - connection.getLastRwAt() > 1000 * 60 * 5) {
             try {
                 channel.close();
                 channel.keyFor(selector).cancel();
                 queue.poll();
+                map.remove(connection);
                 logger.info("active close connection {}", channel);
                 return true;
             } catch (Exception e) {

@@ -32,15 +32,14 @@ import static com.wkf.request.HttpRequest.GET;
 import static com.wkf.request.HttpRequest.POST;
 
 public class Reactor extends Thread {
-
-    private static final String TAG = "";
+    private static final String TAG = "Reactor";
     final ServerSocketChannel serverSocket;
-    public List<HttpRequestHandler> httpHandles = new ArrayList<>();
+    public List<HttpRequestHandler> httpHandles;
     Selector accSelector = Selector.open();
     Selector[] rwSelectors = null;
     Logger logger = LoggerFactory.getLogger(TAG);
-    private Http400Handler default400 = new Http400Handler();
-    private Map<SocketChannel, Map<String, Object>> sessionMap = new ConcurrentHashMap<>(256);
+    private Http400Handler default400;
+    private Map<SocketChannel, Map<String, Object>> sessionMap;
     private int selectIndex = 0;
     private int subSelectorN = 4;
     private IdleConnectionCleaner connectionCleaner;
@@ -59,7 +58,11 @@ public class Reactor extends Thread {
             rwSelectors[i] = Selector.open();
             threadPool.execute(new RWHandler(rwSelectors[i]));
         }
+        httpHandles = new ArrayList<>();
+        default400 = new Http400Handler();
         connectionCleaner = new IdleConnectionCleaner();
+        sessionMap = new ConcurrentHashMap<>(256);
+        HttpRequest.setSession(sessionMap);
         Method[] methods = DefaultRouter.class.getMethods();
         DefaultRouter router = new DefaultRouter();
         for (Method method : methods) {
@@ -126,7 +129,7 @@ public class Reactor extends Thread {
                     connection.configureBlocking(false);
                     Selector s = getNextSelector();
                     connection.register(s, SelectionKey.OP_READ);
-                    IdleConnectionCleaner.add(connection, s);
+                    connectionCleaner.add(connection, s);
                     s.wakeup();
                 }
             } catch (IOException e) {
@@ -134,7 +137,6 @@ public class Reactor extends Thread {
             }
         }
     }
-
 
     public Object[] generateParamList(HttpRequest request, HttpResponse response, Method method) throws Exception {
         Object[] paramList = new Object[method.getParameterCount()];
@@ -179,8 +181,8 @@ public class Reactor extends Thread {
         return paramList;
     }
 
+    // read http-request thread
     class RWHandler implements Runnable {
-        Map<SocketChannel, StringBuilder> readMapping = new HashMap<>(256);
         private Selector selector;
         private ByteBuffer buffer = ByteBuffer.allocate(4096);
 
@@ -221,6 +223,7 @@ public class Reactor extends Thread {
                     if (n < 0) {
                         logger.info("connection closed: {}", channel.getRemoteAddress());
                         channel.keyFor(selector).cancel();
+                        sessionMap.remove(connection);
                         break;
                     }
                     buffer.flip();
@@ -242,6 +245,7 @@ public class Reactor extends Thread {
                 }
                 HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
                 HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
+                connectionCleaner.update(connection);
                 //request.getRequestParam("name");
                 HttpResponse response = new HttpResponse(channel);
                 logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);

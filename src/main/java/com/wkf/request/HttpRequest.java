@@ -25,15 +25,20 @@ public class HttpRequest implements Constant {
     private HttpRequestBody requestBody;
     @JsonIgnore
     private SocketChannel channel;
-
+    private static Map<SocketChannel, Map<String, Object>> session;
     public HttpRequest() {
     }
 
+    public static void setSession(Map<SocketChannel, Map<String, Object>> session) {
+        HttpRequest.session = session;
+    }
+
     @JsonIgnore
-    public HttpRequest(SocketChannel channel, HttpRequestHeader header, HttpRequestBody body) {
+    public HttpRequest(SocketChannel channel, HttpRequestHeader header, HttpRequestBody body,Map<SocketChannel, Map<String, Object>> session) {
         this.channel = channel;
         this.requestHeader = header;
         this.requestBody = body;
+        this.session = session;
     }
 
     @JsonIgnore
@@ -69,7 +74,6 @@ public class HttpRequest implements Constant {
                 throw new ParseHttpException(header);
             r.header.put(kv[0], kv[1]);
         }
-
         return r;
     }
 
@@ -228,6 +232,15 @@ public class HttpRequest implements Constant {
         return channel;
     }
 
+    public Object getSession(String key) {
+        if (session.get(channel) == null) return null;
+        return session.get(channel).get(key);
+    }
+
+    public void setSession(String key, Object value) {
+        if (session.get(channel) == null) return;
+        session.get(channel).put(key, value);
+    }
     @Override
     public String toString() {
         return "HttpRequest{" +

@@ -12,7 +12,7 @@ class Worker extends Thread {
     HttpResponse response;
     HttpRequestHandler handler;
 
-    Logger logger = LoggerFactory.getLogger("");
+    Logger logger = LoggerFactory.getLogger("Worker");
 
     public Worker(HttpRequest request, HttpResponse response, HttpRequestHandler handler) {
         this.request = request;
@@ -25,11 +25,12 @@ class Worker extends Thread {
         try {
             handler.doHandle(request, response);
         } catch (Exception e) {
+            e.printStackTrace();
             try {
                 new Http500Handler(e).doHandle(request, response);
                 logger.error("exception occurrence when handel {}: {}", request.getRequestHeader(), e.getStackTrace());
             } catch (Exception ex) {
-                e.printStackTrace();
+                ex.printStackTrace();
             }
         }
     }
