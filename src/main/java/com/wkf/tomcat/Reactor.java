@@ -3,10 +3,10 @@ package com.wkf.tomcat;
 import com.wkf.annotation.AutoCompleteEnable;
 import com.wkf.annotation.RequestMetadata;
 import com.wkf.annotation.RequestParameter;
+import com.wkf.cron.IdleConnectionCleaner;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.HttpRequestHandler;
 import com.wkf.handler.StaticFilesHandler;
-import com.wkf.lock.ChannelTask;
 import com.wkf.lock.Synchronization;
 import com.wkf.request.HttpRequest;
 import com.wkf.request.HttpRequestHeader;
@@ -38,13 +38,12 @@ public class Reactor extends Thread {
     public List<HttpRequestHandler> httpHandles = new ArrayList<>();
     Selector accSelector = Selector.open();
     Selector[] rwSelectors = null;
-    //    ExecutorService service = Executors.newFixedThreadPool(4);
     Logger logger = LoggerFactory.getLogger(TAG);
     private Http400Handler default400 = new Http400Handler();
     private Map<SocketChannel, Map<String, Object>> sessionMap = new ConcurrentHashMap<>(256);
     private int selectIndex = 0;
     private int subSelectorN = 4;
-
+    private IdleConnectionCleaner connectionCleaner;
     private ThreadPool threadPool;
 
     public Reactor(int port, ThreadPool pool) throws Exception {
@@ -60,7 +59,7 @@ public class Reactor extends Thread {
             rwSelectors[i] = Selector.open();
             threadPool.execute(new RWHandler(rwSelectors[i]));
         }
-
+        connectionCleaner = new IdleConnectionCleaner();
         Method[] methods = DefaultRouter.class.getMethods();
         DefaultRouter router = new DefaultRouter();
         for (Method method : methods) {
@@ -89,6 +88,7 @@ public class Reactor extends Thread {
             }
         }
         httpHandles.add(new StaticFilesHandler());
+        connectionCleaner.start();
         logger.info("Init done. Lintening on localhost:{}", port);
     }
 
@@ -126,6 +126,7 @@ public class Reactor extends Thread {
                     connection.configureBlocking(false);
                     Selector s = getNextSelector();
                     connection.register(s, SelectionKey.OP_READ);
+                    IdleConnectionCleaner.add(connection, s);
                     s.wakeup();
                 }
             } catch (IOException e) {
