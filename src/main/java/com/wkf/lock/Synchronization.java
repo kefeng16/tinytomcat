@@ -1,18 +1,15 @@
 package com.wkf.lock;
 
-import com.wkf.handler.Http500Handler;
-
 import java.nio.channels.SocketChannel;
 
 public class Synchronization {
     public Synchronization() {
     }
 
-    public static boolean threadSafetyFor(SocketChannel channel, ChannelTask task) {
+    public static boolean threadSafetyFor(SocketChannel channel, ChannelTask task, Object... args) {
         synchronized (channel) {
             try {
-                task.doTask(channel);
-                return true;
+                return task.doTask(channel, args);
             } catch (Exception e) {
                 e.printStackTrace();
             }
