@@ -1,6 +1,7 @@
 package com.wkf.response;
 
 import com.wkf.exception.PayloadEmptyException;
+import com.wkf.lock.Synchronization;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -64,91 +65,110 @@ public class HttpResponse {
     }
 
     public void writeJson(String response) throws Exception {
-        if (response == null) throw new PayloadEmptyException("data is null");
-        byte[] payload = response.getBytes(StandardCharsets.UTF_8);
-        header.put("Content-Length", payload.length);
-        header.put("Content-Type", "application/json;charset=utf-8");
-        if (cookie != null) {
-            header.put("Cookie", cookie);
-        }
-        String header = buildResponseHeader();
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(payload));
+        Synchronization.threadSafetyFor(channel, (connection, args)->{
+            if (response == null) throw new PayloadEmptyException("data is null");
+            byte[] payload = response.getBytes(StandardCharsets.UTF_8);
+            header.put("Content-Length", payload.length);
+            header.put("Content-Type", "application/json;charset=utf-8");
+            if (cookie != null) {
+                header.put("Cookie", cookie);
+            }
+            String header = buildResponseHeader();
+            connection.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
+            connection.write(ByteBuffer.wrap(payload));
+            return true;
+        });
     }
 
     public void writeJson(byte[] response) throws Exception {
-        if (response == null) throw new PayloadEmptyException("data is null");
-        byte[] payload = response;
-        header.put("Content-Length", payload.length);
-        header.put("Content-Type", "application/json;charset=utf-8");
-        if (cookie != null) {
-            header.put("Cookie", cookie);
-        }
-        String header = buildResponseHeader();
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(payload));
+        Synchronization.threadSafetyFor(channel, (connection, args)->{
+            if (response == null) throw new PayloadEmptyException("data is null");
+            byte[] payload = response;
+            header.put("Content-Length", payload.length);
+            header.put("Content-Type", "application/json;charset=utf-8");
+            if (cookie != null) {
+                header.put("Cookie", cookie);
+            }
+            String header = buildResponseHeader();
+            connection.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
+            connection.write(ByteBuffer.wrap(payload));
+            return true;
+        });
     }
 
     public void writeHtml(String response) throws Exception {
-        if (response == null) throw new PayloadEmptyException("data is null");
-        byte[] payload = response.getBytes(StandardCharsets.UTF_8);
-        header.put("Content-Length", payload.length);
-        header.put("Content-Type", "text/html;charset=utf-8");
-        if (cookie != null) {
-            header.put("Cookie", cookie);
-        }
-        String header = buildResponseHeader();
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(payload));
+        Synchronization.threadSafetyFor(channel, (connection, args)->{
+            if (response == null) throw new PayloadEmptyException("data is null");
+            byte[] payload = response.getBytes(StandardCharsets.UTF_8);
+            header.put("Content-Length", payload.length);
+            header.put("Content-Type", "text/html;charset=utf-8");
+            if (cookie != null) {
+                header.put("Cookie", cookie);
+            }
+            String header = buildResponseHeader();
+            connection.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
+            connection.write(ByteBuffer.wrap(payload));
+            return true;
+        });
     }
 
     public void writeHtml(byte[] response) throws Exception {
-        if (response == null) throw new PayloadEmptyException("data is null");
-        byte[] payload = response;
-        header.put("Content-Length", payload.length);
-        header.put("Content-Type", "text/html;charset=utf-8");
-        if (cookie != null) {
-            header.put("Cookie", cookie);
-        }
-        String header = buildResponseHeader();
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(payload));
+        Synchronization.threadSafetyFor(channel, (connection, args)->{
+            if (response == null) throw new PayloadEmptyException("data is null");
+            byte[] payload = response;
+            header.put("Content-Length", payload.length);
+            header.put("Content-Type", "text/html;charset=utf-8");
+            if (cookie != null) {
+                header.put("Cookie", cookie);
+            }
+            String header = buildResponseHeader();
+            connection.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
+            connection.write(ByteBuffer.wrap(payload));
+            return true;
+        });
     }
 
     public void writeBinary(byte[] response) throws Exception {
-        if (response == null) throw new PayloadEmptyException("data is null");
-        byte[] payload = response;
-        header.put("Content-Length", payload.length);
-        header.put("Content-Type", "application/octet-stream");
-        header.put("Content-Disposition", "attachment;filename=document");
-        if (cookie != null) {
-            header.put("Cookie", cookie);
-        }
-        String header = buildResponseHeader();
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        channel.write(ByteBuffer.wrap(payload));
+        Synchronization.threadSafetyFor(channel, (connection, args)->{
+            if (response == null) throw new PayloadEmptyException("data is null");
+            byte[] payload = response;
+            header.put("Content-Length", payload.length);
+            header.put("Content-Type", "application/octet-stream");
+            header.put("Content-Disposition", "attachment;filename=document");
+            if (cookie != null) {
+                header.put("Cookie", cookie);
+            }
+            String header = buildResponseHeader();
+            connection.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
+            connection.write(ByteBuffer.wrap(payload));
+            return true;
+        });
     }
 
     public void writeBinary(String path) throws Exception {
-        File file = new File(path);
-        var split = file.getName().split("\\.");
-        String type = getContentType(split[split.length - 1]);
-        FileInputStream stream = new FileInputStream(file);
-        FileChannel fileChannel = stream.getChannel();
-        long size = file.length(), remaining = file.length();
-        header.put("Content-Length", size);
-        header.put("Content-Type", type);
-        if (type.equals("application/octet-stream")) {
-            header.put("Content-Disposition", "attachment;filename=" + file.getName());
-        }
-        String header = buildResponseHeader();
-        channel.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
-        while (remaining > 0) {
-            long n = fileChannel.transferTo(0, size, channel);
-            if (n <= 0)
-                break;
-            remaining -= n;
-        }
+        Synchronization.threadSafetyFor(channel, (connection, args)->{
+            File file = new File(path);
+            var split = file.getName().split("\\.");
+            String type = getContentType(split[split.length - 1]);
+            FileInputStream stream = new FileInputStream(file);
+            FileChannel fileChannel = stream.getChannel();
+            long size = file.length(), remaining = file.length();
+            header.put("Content-Length", size);
+            header.put("Content-Type", type);
+            if (type.equals("application/octet-stream")) {
+                header.put("Content-Disposition", "attachment;filename=" + file.getName());
+            }
+            String header = buildResponseHeader();
+            connection.write(ByteBuffer.wrap(header.getBytes(StandardCharsets.UTF_8)));
+            while (remaining > 0) {
+                long n = fileChannel.transferTo(0, size, connection);
+                if (n <= 0)
+                    break;
+                remaining -= n;
+            }
+            fileChannel.close();
+           return true;
+        });
     }
 
     public String getCookie() {

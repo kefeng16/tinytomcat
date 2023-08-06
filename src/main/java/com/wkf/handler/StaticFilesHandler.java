@@ -9,14 +9,14 @@ import java.util.Set;
 
 public class StaticFilesHandler implements HttpRequestHandler {
 
-    public Set<String> allowdFileTypes = new HashSet<>(Arrays.asList("html", "png", "jpeg", "webp", "js", "css", "jpg"));
+    public Set<String> allowedFileTypes = new HashSet<>(Arrays.asList("html", "png", "jpeg", "webp", "js", "css", "jpg"));
 
     @Override
     public boolean hit(HttpRequest request) {
         String path = request.getRequestHeader().path;
         String[] split = path.split("\\.");
         String type = split[split.length - 1];
-        return allowdFileTypes.contains(type) && request.getRequestHeader().getMethod().equals(GET);
+        return allowedFileTypes.contains(type) && request.getRequestHeader().getMethod().equals(GET);
     }
 
     @Override

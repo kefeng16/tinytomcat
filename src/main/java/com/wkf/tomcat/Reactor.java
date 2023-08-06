@@ -27,23 +27,25 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.wkf.request.HttpRequest.GET;
 import static com.wkf.request.HttpRequest.POST;
 
 public class Reactor extends Thread {
-    private static final String TAG = "Reactor";
     final ServerSocketChannel serverSocket;
     public List<HttpRequestHandler> httpHandles;
     Selector accSelector = Selector.open();
     Selector[] rwSelectors = null;
-    Logger logger = LoggerFactory.getLogger(TAG);
+    Logger logger = LoggerFactory.getLogger("Reactor");
     private Http400Handler default400;
     private Map<SocketChannel, Map<String, Object>> sessionMap;
     private int selectIndex = 0;
     private int subSelectorN = 4;
     private IdleConnectionCleaner connectionCleaner;
     private ThreadPool threadPool;
+    private ExecutorService service = Executors.newCachedThreadPool();
 
     public Reactor(int port, ThreadPool pool) throws Exception {
         threadPool = pool;
@@ -56,6 +58,7 @@ public class Reactor extends Thread {
         rwSelectors = new Selector[subSelectorN];
         for (int i = 0; i < subSelectorN; i++) {
             rwSelectors[i] = Selector.open();
+//            service.submit(new RWHandler(rwSelectors[i]));
             threadPool.execute(new RWHandler(rwSelectors[i]));
         }
         httpHandles = new ArrayList<>();
@@ -91,7 +94,7 @@ public class Reactor extends Thread {
             }
         }
         httpHandles.add(new StaticFilesHandler());
-        connectionCleaner.start();
+        //connectionCleaner.start();
         logger.info("Init done. Lintening on localhost:{}", port);
     }
 
@@ -185,7 +188,6 @@ public class Reactor extends Thread {
     class RWHandler implements Runnable {
         private Selector selector;
         private ByteBuffer buffer = ByteBuffer.allocate(4096);
-
         public RWHandler(Selector selector) {
             this.selector = selector;
         }
@@ -220,8 +222,8 @@ public class Reactor extends Thread {
                 while (!finish) {
                     buffer.clear();
                     int n = channel.read(buffer);
-                    if (n < 0) {
-                        logger.info("connection closed: {}", channel.getRemoteAddress());
+                    if (n <= 0) {
+//                        logger.info("connection closed: {}", channel.getRemoteAddress());
                         channel.keyFor(selector).cancel();
                         sessionMap.remove(connection);
                         break;
@@ -246,12 +248,12 @@ public class Reactor extends Thread {
                 HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
                 HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
                 connectionCleaner.update(connection);
-                //request.getRequestParam("name");
                 HttpResponse response = new HttpResponse(channel);
-                logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
+                //logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
                 boolean done = false;
                 for (var handler : httpHandles) {
                     if (handler.hit(request)) {
+//                        service.submit(new Worker(request, response, handler));
                         threadPool.execute(new Worker(request, response, handler));
                         done = true;
                         break;

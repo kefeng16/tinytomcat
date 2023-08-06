@@ -18,6 +18,7 @@ public class InternalTask implements Runnable {
                 Runnable task = runnableQueue.take();
                 task.run();
             } catch (Exception e) {
+                e.printStackTrace();
                 running = false;
                 break;
             }

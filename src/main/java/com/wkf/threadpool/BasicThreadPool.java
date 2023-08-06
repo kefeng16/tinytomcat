@@ -8,7 +8,7 @@ import java.util.stream.IntStream;
 
 public class BasicThreadPool extends Thread implements ThreadPool {
     //拒绝策略
-    private final static DenyPolicy DEFAULT_DENY_POLICY = new DiscardDenyPolicy();
+    private final static DenyPolicy DEFAULT_DENY_POLICY = new RunnerDenyPolicy();
     //自定义线程工厂
     private final static ThreadFactory DEFAULT_THREAD_FACTORY =
             new DefaultThreadFactory();
@@ -31,12 +31,11 @@ public class BasicThreadPool extends Thread implements ThreadPool {
     //线程是否被摧毁
     private volatile boolean isShutdown = false;
 
-
     //构造默认线程池时需要传入的参数：初始线程池的数量，最大线程的数量，核心线程数量，任务队列的最大数
     public BasicThreadPool(int initSize, int maxSize, int coreSize,
                            int queueSize) {
         this(initSize, maxSize, coreSize, DEFAULT_THREAD_FACTORY,
-                queueSize, DEFAULT_DENY_POLICY, 2,
+                queueSize, DEFAULT_DENY_POLICY, 600,
                 TimeUnit.SECONDS);
     }
 
@@ -118,7 +117,6 @@ public class BasicThreadPool extends Thread implements ThreadPool {
 
     }
 
-    //这一段方法不是特别重要，就有读者自己写
     @Override
     public int getInitSize() {
         return initSize;

@@ -44,8 +44,8 @@ public class LinkedRunnableQueue implements RunnableQueue {
                     e.printStackTrace();
                 }
             }
+            return runnableLinkedList.poll();
         }
-        return runnableLinkedList.poll();
     }
 
     @Override
