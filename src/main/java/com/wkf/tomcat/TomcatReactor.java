@@ -41,7 +41,7 @@ public class TomcatReactor extends Thread {
     private Map<SocketChannel, Map<String, Object>> sessionMap;
     private int selectIndex = 0;
     private int subSelectorN = 4;
-    private IdleConnectionCleaner cleaner;
+//    private IdleConnectionCleaner cleaner;
     private ThreadPool threadPool;
 
     public TomcatReactor(int port, ThreadPool pool) throws Exception {
@@ -59,7 +59,7 @@ public class TomcatReactor extends Thread {
         }
         httpHandles = new ArrayList<>();
         default400 = new Http400Handler();
-        cleaner = new IdleConnectionCleaner();
+//        cleaner = new IdleConnectionCleaner();
         sessionMap = new ConcurrentHashMap<>(256);
         HttpRequest.setSession(sessionMap);
         Method[] methods = DefaultRouter.class.getMethods();
@@ -90,7 +90,7 @@ public class TomcatReactor extends Thread {
             }
         }
         httpHandles.add(new StaticFilesHandler());
-        cleaner.start();
+//        cleaner.start();
         logger.info("Init done. Lintening on localhost:{}", port);
     }
 
@@ -128,7 +128,7 @@ public class TomcatReactor extends Thread {
                     connection.configureBlocking(false);
                     Selector s = getNextSelector();
                     connection.register(s, SelectionKey.OP_READ);
-                    cleaner.add(connection, s);
+//                    cleaner.add(connection, s);
                     s.wakeup();
                 }
             } catch (IOException e) {
@@ -223,7 +223,7 @@ public class TomcatReactor extends Thread {
                         logger.info("connection closed: {}", channel.getRemoteAddress());
                         channel.keyFor(selector).cancel();
                         sessionMap.remove(connection);
-                        cleaner.remove(connection);
+//                        cleaner.remove(connection);
                         break;
                     }
                     buffer.flip();
@@ -245,8 +245,7 @@ public class TomcatReactor extends Thread {
                 }
                 HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
                 HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
-
-                cleaner.update(connection);
+//                cleaner.update(connection);
                 HttpResponse response = new HttpResponse(channel);
                 logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
                 boolean done = false;

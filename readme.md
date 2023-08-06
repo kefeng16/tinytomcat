@@ -14,7 +14,7 @@
 ```shell
 $ tail -n 1 jmeter.log
 
-2023-08-06 18:03:41,799 INFO o.a.j.r.Summariser: summary = 120000 in 00:00:05 = 25279.1/s Avg:    28 Min:     0 Max:   508 Err:   987 (0.82%)
+2023-08-06 19:26:53,021 INFO o.a.j.r.Summariser: summary = 400000 in 00:00:09 = 42978.4/s Avg:    27 Min:     0 Max:  1300 Err:    59 (0.01%)
 ```
 >因操作系统限制文件描述符不能同时打开太多,后续会在linux上进行测试,上述请求接口进行了具体的文件读写并响应真实的文件数据,而非一个空白响应
 
@@ -109,7 +109,7 @@ $ tail -n 1 jmeter.log
     }
     //零拷贝的方式高效的返回二进制数据
     //目前支持:html,css,js,png,jpg,octet-stream
-    //需要使用者输入路径便可以通过文件类型发送正确的http响应报头和响应数据
+    //需要使用者输入路径便可以通过文件类型发送正确的http响应报头响应数据
     public void writeBinary(String path) throws Exception {
     }
 
@@ -137,7 +137,3 @@ $ tail -n 1 jmeter.log
     }
     ```
     其中, `hit()`方法先判断请求的文件是否是合法类型,然后再续判断该请求是否为GET请求,若两个条件均符合则返回给该请求的文件内容,具体的实现可以参照`HttpResponse`源码
-   
-
-
-
