@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static com.wkf.request.HttpRequest.GET;
 import static com.wkf.request.HttpRequest.POST;
 
-public class Reactor extends Thread {
+public class TomcatReactor extends Thread {
     final ServerSocketChannel serverSocket;
     public List<HttpRequestHandler> httpHandles;
     Selector accSelector = Selector.open();
@@ -44,7 +44,7 @@ public class Reactor extends Thread {
     private IdleConnectionCleaner cleaner;
     private ThreadPool threadPool;
 
-    public Reactor(int port, ThreadPool pool) throws Exception {
+    public TomcatReactor(int port, ThreadPool pool) throws Exception {
         threadPool = pool;
         // Reactor初始化
         serverSocket = ServerSocketChannel.open();
