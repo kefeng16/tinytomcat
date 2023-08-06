@@ -89,7 +89,7 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
                 logger.info("active close connection {}", channel);
                 return true;
             } catch (Exception e) {
-               e.printStackTrace();
+                e.printStackTrace();
             }
         } else {
             return false;

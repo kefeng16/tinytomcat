@@ -1,5 +1,7 @@
 ## tinytomcat
+
 一个用Java编写的Http服务器,有以下特点:
+
 - 利用NIO的IO多路复用和Reactor模式,配合内部实现的线程池形成整体的并发模型
 - 使用零拷贝技术高效的实现了二进制类型Http响应
 - 利用状态机解析Http请求,实现了对Get,Post,Put,Delete请求的解析
@@ -8,17 +10,20 @@
 - 利用反射技术,支持将Http中的请求参数自动映射成Java对象
 - 支持用户方便的定义Http请求的处理器,用户只需添加对应的注解,系统就可以自动注册该处理器
 
-##   压力测试
+## 压力测试
 
 采用jmeter工具进行压测,采用的平台是macos13.5,采用5000个并发请求,模拟20轮请求:执行结果如下所示
+
 ```shell
 $ tail -n 1 jmeter.log
 
 2023-08-06 19:26:53,021 INFO o.a.j.r.Summariser: summary = 400000 in 00:00:09 = 42978.4/s Avg:    27 Min:     0 Max:  1300 Err:    59 (0.01%)
 ```
->因操作系统限制文件描述符不能同时打开太多,后续会在linux上进行测试,上述请求接口进行了具体的文件读写并响应真实的文件数据,而非一个空白响应
+
+> 因操作系统限制文件描述符不能同时打开太多,后续会在linux上进行测试,上述请求接口进行了具体的文件读写并响应真实的文件数据,而非一个空白响应
 
 ## 使用姿势
+
 - 注册一个处理器
     ```java
     @RequestMetadata(path = "/dog", method = GET)
@@ -27,10 +32,10 @@ $ tail -n 1 jmeter.log
         response.writeJson(Json.marshal(request.getSession("lastReqTime")));
     }
     ```
-    你只需要添加Http请求的注解,注意需要写明请求路径,请求方式,利用`request`和`response`中封装的方法可以完成Http响应.
+  你只需要添加Http请求的注解,注意需要写明请求路径,请求方式,利用`request`和`response`中封装的方法可以完成Http响应.
 - 获得请求参数
 
-    有几种获取请求参数的方式
+  有几种获取请求参数的方式
 
     - 通过request封装的方法获得:该方式可以获取路径参数(即url query)和Multipartform,以及urlencode类型的参数
         ```java
@@ -43,7 +48,7 @@ $ tail -n 1 jmeter.log
             //在这里根据cat进行一系列操作
         }
         ```
-        其中Cat实体类你需要写入相应注解:
+      其中Cat实体类你需要写入相应注解:
         ```java
         @RequestParameter
         public class Cat {
@@ -61,13 +66,13 @@ $ tail -n 1 jmeter.log
             }
         }
         ```
-        接着,你可以构造如下的请求来直接获得cat参数:
-        `http://localhost:8080/cat?food=a&master=b`
-        >该种参数自动的方式依赖于`AutoCompleteEnable`注解中的id属性
+      接着,你可以构造如下的请求来直接获得cat参数:
+      `http://localhost:8080/cat?food=a&master=b`
+      > 该种参数自动的方式依赖于`AutoCompleteEnable`注解中的id属性
     - 对于复杂的请求参数,建议采用POST请求,并且在请求载荷中用json传递,该种方式可以完成复杂对象的自动装载,本项目依赖于Jackson来完成反序列化操作,进而自动装载请求参数
 - 设置session
 
-    HttpRequest类型中封装好了有关session的操作方法,你只需要直接调用如下方法即可:
+  HttpRequest类型中封装好了有关session的操作方法,你只需要直接调用如下方法即可:
     ```java
     @RequestMetadata(path = "/dog", method = GET)
     public void dog(HttpRequest request, HttpResponse response) throws Exception {
@@ -80,7 +85,7 @@ $ tail -n 1 jmeter.log
     ```
 - 得到请求Cookie
 
-    对于Cookie你只需要参照http请求头的数据,得到由前端传递的Cookie数据,该项操作也封装成了一个方法:
+  对于Cookie你只需要参照http请求头的数据,得到由前端传递的Cookie数据,该项操作也封装成了一个方法:
     ```java
     @RequestMetadata(path = "/index", method = GET)
     public void index(HttpRequest request, HttpResponse response) throws Exception {
@@ -88,9 +93,11 @@ $ tail -n 1 jmeter.log
         new DefaultHandler().doHandle(request, response);
     }
     ```
-## 在处理器中对http请求进行相应
+
+## 响应请求
 
 - 目前`HttpResponse`内部封装了一些方法以供调用:
+
 ```java
     //直接返回json字符串
     public void writeJson(String response) throws Exception {
@@ -114,9 +121,11 @@ $ tail -n 1 jmeter.log
     }
 
 ```
+
 - 一个使用例子 `GET http://127.0.0.1:8080/index.html`
 
-    上述静态文件处理器无需用户注册,因为默认的实现方式是:当一个http请求到达时,优先匹配用户注册的处理器,若无法匹配,则尝试匹配到静态文件处理器,若静态文件处理器依然无法处理该请求,则返回404的相应报头
+  上述静态文件处理器无需用户注册,因为默认的实现方式是:
+  当一个http请求到达时,优先匹配用户注册的处理器,若无法匹配,则尝试匹配到静态文件处理器,若静态文件处理器依然无法处理该请求,则返回404的相应报头
     ```java
     public class StaticFilesHandler implements HttpRequestHandler {
 
@@ -136,4 +145,6 @@ $ tail -n 1 jmeter.log
         }
     }
     ```
-    其中, `hit()`方法先判断请求的文件是否是合法类型,然后再续判断该请求是否为GET请求,若两个条件均符合则返回给该请求的文件内容,具体的实现可以参照`HttpResponse`源码
+  其中, `hit()`
+  方法先判断请求的文件是否是合法类型,然后再续判断该请求是否为GET请求,若两个条件均符合则返回给该请求的文件内容,具体的实现可以参照`HttpResponse`
+  源码

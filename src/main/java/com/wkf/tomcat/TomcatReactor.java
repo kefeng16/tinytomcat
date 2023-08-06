@@ -3,7 +3,6 @@ package com.wkf.tomcat;
 import com.wkf.annotation.AutoCompleteEnable;
 import com.wkf.annotation.RequestMetadata;
 import com.wkf.annotation.RequestParameter;
-import com.wkf.cron.IdleConnectionCleaner;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.HttpRequestHandler;
 import com.wkf.handler.StaticFilesHandler;
@@ -41,7 +40,7 @@ public class TomcatReactor extends Thread {
     private Map<SocketChannel, Map<String, Object>> sessionMap;
     private int selectIndex = 0;
     private int subSelectorN = 4;
-//    private IdleConnectionCleaner cleaner;
+    //    private IdleConnectionCleaner cleaner;
     private ThreadPool threadPool;
 
     public TomcatReactor(int port, ThreadPool pool) throws Exception {
