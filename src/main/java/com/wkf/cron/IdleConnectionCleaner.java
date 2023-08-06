@@ -46,6 +46,17 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
         });
     }
 
+    public void remove(SocketChannel connection) {
+        threadSafetyFor(connection, (channel, args) -> {
+            var conn = map.get(connection);
+            if (conn != null) {
+                conn.lastRwAt = 0;
+                map.remove(connection);
+            }
+            return true;
+        });
+    }
+
     @Override
     public void run() {
         while (true) {
@@ -54,7 +65,7 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            logger.info("connections: {}", queue.size());
+            logger.info("connections: {}", map.size());
             while (true) {
                 Connection connection = queue.peek();
                 if (connection == null) break;

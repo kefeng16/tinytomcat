@@ -223,6 +223,7 @@ public class TomcatReactor extends Thread {
                         logger.info("connection closed: {}", channel.getRemoteAddress());
                         channel.keyFor(selector).cancel();
                         sessionMap.remove(connection);
+                        cleaner.remove(connection);
                         break;
                     }
                     buffer.flip();
