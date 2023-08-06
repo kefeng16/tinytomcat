@@ -35,7 +35,7 @@ public class BasicThreadPool extends Thread implements ThreadPool {
     public BasicThreadPool(int initSize, int maxSize, int coreSize,
                            int queueSize) {
         this(initSize, maxSize, coreSize, DEFAULT_THREAD_FACTORY,
-                queueSize, DEFAULT_DENY_POLICY, 600,
+                queueSize, DEFAULT_DENY_POLICY, 5,
                 TimeUnit.SECONDS);
     }
 

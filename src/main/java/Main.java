@@ -8,7 +8,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         CountDownLatch l = new CountDownLatch(1);
-        final ThreadPool threadPool = new BasicThreadPool(256, 1024, 512, 204800);
+        final ThreadPool threadPool = new BasicThreadPool(256, 1024, 512, 65535);
         new Reactor(8080, threadPool).start();
         l.await();
     }

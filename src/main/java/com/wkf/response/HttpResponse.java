@@ -65,7 +65,7 @@ public class HttpResponse {
     }
 
     public void writeJson(String response) throws Exception {
-        Synchronization.threadSafetyFor(channel, (connection, args)->{
+        Synchronization.threadSafetyFor(channel, (connection, args) -> {
             if (response == null) throw new PayloadEmptyException("data is null");
             byte[] payload = response.getBytes(StandardCharsets.UTF_8);
             header.put("Content-Length", payload.length);
@@ -81,7 +81,7 @@ public class HttpResponse {
     }
 
     public void writeJson(byte[] response) throws Exception {
-        Synchronization.threadSafetyFor(channel, (connection, args)->{
+        Synchronization.threadSafetyFor(channel, (connection, args) -> {
             if (response == null) throw new PayloadEmptyException("data is null");
             byte[] payload = response;
             header.put("Content-Length", payload.length);
@@ -97,7 +97,7 @@ public class HttpResponse {
     }
 
     public void writeHtml(String response) throws Exception {
-        Synchronization.threadSafetyFor(channel, (connection, args)->{
+        Synchronization.threadSafetyFor(channel, (connection, args) -> {
             if (response == null) throw new PayloadEmptyException("data is null");
             byte[] payload = response.getBytes(StandardCharsets.UTF_8);
             header.put("Content-Length", payload.length);
@@ -113,7 +113,7 @@ public class HttpResponse {
     }
 
     public void writeHtml(byte[] response) throws Exception {
-        Synchronization.threadSafetyFor(channel, (connection, args)->{
+        Synchronization.threadSafetyFor(channel, (connection, args) -> {
             if (response == null) throw new PayloadEmptyException("data is null");
             byte[] payload = response;
             header.put("Content-Length", payload.length);
@@ -129,7 +129,7 @@ public class HttpResponse {
     }
 
     public void writeBinary(byte[] response) throws Exception {
-        Synchronization.threadSafetyFor(channel, (connection, args)->{
+        Synchronization.threadSafetyFor(channel, (connection, args) -> {
             if (response == null) throw new PayloadEmptyException("data is null");
             byte[] payload = response;
             header.put("Content-Length", payload.length);
@@ -146,7 +146,7 @@ public class HttpResponse {
     }
 
     public void writeBinary(String path) throws Exception {
-        Synchronization.threadSafetyFor(channel, (connection, args)->{
+        Synchronization.threadSafetyFor(channel, (connection, args) -> {
             File file = new File(path);
             var split = file.getName().split("\\.");
             String type = getContentType(split[split.length - 1]);
@@ -167,7 +167,7 @@ public class HttpResponse {
                 remaining -= n;
             }
             fileChannel.close();
-           return true;
+            return true;
         });
     }
 

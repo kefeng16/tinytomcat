@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 public class HttpRequest implements Constant {
+    private static Map<SocketChannel, Map<String, Object>> session;
     @JsonInclude
     private String requestMethod;
     @JsonInclude
@@ -25,20 +26,20 @@ public class HttpRequest implements Constant {
     private HttpRequestBody requestBody;
     @JsonIgnore
     private SocketChannel channel;
-    private static Map<SocketChannel, Map<String, Object>> session;
+
     public HttpRequest() {
     }
 
-    public static void setSession(Map<SocketChannel, Map<String, Object>> session) {
-        HttpRequest.session = session;
-    }
-
     @JsonIgnore
-    public HttpRequest(SocketChannel channel, HttpRequestHeader header, HttpRequestBody body,Map<SocketChannel, Map<String, Object>> session) {
+    public HttpRequest(SocketChannel channel, HttpRequestHeader header, HttpRequestBody body, Map<SocketChannel, Map<String, Object>> session) {
         this.channel = channel;
         this.requestHeader = header;
         this.requestBody = body;
         this.session = session;
+    }
+
+    public static void setSession(Map<SocketChannel, Map<String, Object>> session) {
+        HttpRequest.session = session;
     }
 
     @JsonIgnore
@@ -241,6 +242,7 @@ public class HttpRequest implements Constant {
         if (session.get(channel) == null) return;
         session.get(channel).put(key, value);
     }
+
     @Override
     public String toString() {
         return "HttpRequest{" +

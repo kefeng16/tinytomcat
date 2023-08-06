@@ -4,7 +4,6 @@ import com.wkf.lock.ChannelTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
@@ -17,6 +16,7 @@ import static com.wkf.lock.Synchronization.threadSafetyFor;
 public class IdleConnectionCleaner extends Thread implements ChannelTask {
     private static final Queue<Connection> queue;
     private static Map<SocketChannel, Connection> map;
+
     static {
         queue = new PriorityQueue<>((c1, c2) -> {
             long r = c1.getLastRwAt() - c2.getLastRwAt();
@@ -37,10 +37,10 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
         });
     }
 
-    public void update(SocketChannel connection){
+    public void update(SocketChannel connection) {
         threadSafetyFor(connection, (channel, args) -> {
             var conn = map.get(channel);
-            if (conn==null) return false;
+            if (conn == null) return false;
             conn.update();
             return true;
         });
@@ -54,7 +54,7 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            logger.info("connections: {}", queue);
+            logger.info("connections: {}", queue.size());
             while (true) {
                 Connection connection = queue.peek();
                 if (connection == null) break;

@@ -27,8 +27,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static com.wkf.request.HttpRequest.GET;
 import static com.wkf.request.HttpRequest.POST;
@@ -43,9 +41,8 @@ public class Reactor extends Thread {
     private Map<SocketChannel, Map<String, Object>> sessionMap;
     private int selectIndex = 0;
     private int subSelectorN = 4;
-    private IdleConnectionCleaner connectionCleaner;
+    private IdleConnectionCleaner cleaner;
     private ThreadPool threadPool;
-    private ExecutorService service = Executors.newCachedThreadPool();
 
     public Reactor(int port, ThreadPool pool) throws Exception {
         threadPool = pool;
@@ -58,12 +55,11 @@ public class Reactor extends Thread {
         rwSelectors = new Selector[subSelectorN];
         for (int i = 0; i < subSelectorN; i++) {
             rwSelectors[i] = Selector.open();
-//            service.submit(new RWHandler(rwSelectors[i]));
             threadPool.execute(new RWHandler(rwSelectors[i]));
         }
         httpHandles = new ArrayList<>();
         default400 = new Http400Handler();
-        connectionCleaner = new IdleConnectionCleaner();
+        cleaner = new IdleConnectionCleaner();
         sessionMap = new ConcurrentHashMap<>(256);
         HttpRequest.setSession(sessionMap);
         Method[] methods = DefaultRouter.class.getMethods();
@@ -94,7 +90,7 @@ public class Reactor extends Thread {
             }
         }
         httpHandles.add(new StaticFilesHandler());
-        //connectionCleaner.start();
+        cleaner.start();
         logger.info("Init done. Lintening on localhost:{}", port);
     }
 
@@ -132,7 +128,7 @@ public class Reactor extends Thread {
                     connection.configureBlocking(false);
                     Selector s = getNextSelector();
                     connection.register(s, SelectionKey.OP_READ);
-                    connectionCleaner.add(connection, s);
+                    cleaner.add(connection, s);
                     s.wakeup();
                 }
             } catch (IOException e) {
@@ -188,6 +184,7 @@ public class Reactor extends Thread {
     class RWHandler implements Runnable {
         private Selector selector;
         private ByteBuffer buffer = ByteBuffer.allocate(4096);
+
         public RWHandler(Selector selector) {
             this.selector = selector;
         }
@@ -217,29 +214,29 @@ public class Reactor extends Thread {
         public void readHttpRequest(SocketChannel connection) throws Exception {
             if (connection == null) return;
             Synchronization.threadSafetyFor(connection, (channel, args) -> {
-                StringBuilder header = new StringBuilder();
+                StringBuilder builder = new StringBuilder();
                 boolean finish = false;
                 while (!finish) {
                     buffer.clear();
                     int n = channel.read(buffer);
                     if (n <= 0) {
-//                        logger.info("connection closed: {}", channel.getRemoteAddress());
+                        logger.info("connection closed: {}", channel.getRemoteAddress());
                         channel.keyFor(selector).cancel();
                         sessionMap.remove(connection);
                         break;
                     }
                     buffer.flip();
                     while (buffer.hasRemaining()) {
-                        header.append((char) buffer.get());
-                        if (header.length() > 4) {
-                            if (header.substring(header.length() - 4, header.length()).equals("\r\n\r\n")) {
+                        builder.append((char) buffer.get());
+                        if (builder.length() > 4) {
+                            if (builder.substring(builder.length() - 4, builder.length()).equals("\r\n\r\n")) {
                                 finish = true;
                                 break;
                             }
                         }
                     }
                 }
-                String requestString = header.toString();
+                String requestString = builder.toString();
                 if (requestString.length() == 0) return false;
                 Map<String, Object> session = sessionMap.get(channel);
                 if (session == null) {
@@ -247,13 +244,12 @@ public class Reactor extends Thread {
                 }
                 HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
                 HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
-                connectionCleaner.update(connection);
+                cleaner.update(connection);
                 HttpResponse response = new HttpResponse(channel);
-                //logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
+                logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
                 boolean done = false;
                 for (var handler : httpHandles) {
                     if (handler.hit(request)) {
-//                        service.submit(new Worker(request, response, handler));
                         threadPool.execute(new Worker(request, response, handler));
                         done = true;
                         break;
