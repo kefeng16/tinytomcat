@@ -18,6 +18,7 @@ public class DefaultRouter implements Constant {
 
     @RequestMetadata(path = "/index", method = GET)
     public void index(HttpRequest request, HttpResponse response) throws Exception {
+        String cookie = request.getRequestCookie();
         new DefaultHandler().doHandle(request, response);
     }
 
@@ -29,6 +30,7 @@ public class DefaultRouter implements Constant {
 
     @RequestMetadata(path = "/cat", method = POST)
     public void cat(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
+        String value = request.getRequestParam("key");
         response.writeHtml("<h1>6666</h1>");
     }
 }

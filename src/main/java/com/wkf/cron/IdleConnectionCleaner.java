@@ -82,17 +82,19 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
         if (System.currentTimeMillis() - connection.getLastRwAt() > 1000 * 60 * 5) {
             try {
                 channel.close();
-                channel.keyFor(selector).cancel();
+                if (channel.keyFor(selector) != null)
+                    channel.keyFor(selector).cancel();
                 queue.poll();
                 map.remove(connection);
                 logger.info("active close connection {}", channel);
                 return true;
             } catch (Exception e) {
-                throw e;
+               e.printStackTrace();
             }
         } else {
             return false;
         }
+        return false;
     }
 
     static class Connection {

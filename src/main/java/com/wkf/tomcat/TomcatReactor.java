@@ -245,6 +245,7 @@ public class TomcatReactor extends Thread {
                 }
                 HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
                 HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
+
                 cleaner.update(connection);
                 HttpResponse response = new HttpResponse(channel);
                 logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
