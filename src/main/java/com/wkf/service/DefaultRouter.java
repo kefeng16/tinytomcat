@@ -24,7 +24,7 @@ public class DefaultRouter implements Constant {
 
     @RequestMetadata(path = "/dog", method = GET)
     public void dog(HttpRequest request, HttpResponse response) throws Exception {
-        request.setSession("lastReqTime", new Date());
+        String value = request.getRequestParam("name");
         response.writeJson(Json.marshal(request.getSession("lastReqTime")));
     }
 

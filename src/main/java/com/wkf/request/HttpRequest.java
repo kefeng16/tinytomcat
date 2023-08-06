@@ -154,6 +154,7 @@ public class HttpRequest implements Constant {
     }
 
     public String getRequestParam(String key) {
+        if (requestHeader.getQuery().get(key) != null) return requestHeader.getQuery().get(key);
         var type = getRequestHeader().getHeaderValue("Content-Type");
         if (type == null) return null;
         if (type.contains("x-www-form-urlencoded")) {
