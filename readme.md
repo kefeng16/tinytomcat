@@ -16,9 +16,7 @@ $ tail -n 1 jmeter.log
 
 2023-08-06 18:03:41,799 INFO o.a.j.r.Summariser: summary = 120000 in 00:00:05 = 25279.1/s Avg:    28 Min:     0 Max:   508 Err:   987 (0.82%)
 ```
->因操作系统限制文件描述符不能同时打开太多,后续会在linux上进行测试
-
->上述请求接口进行了具体的文件读写并响应真实的文件数据,而非一个空白响应
+>因操作系统限制文件描述符不能同时打开太多,后续会在linux上进行测试,上述请求接口进行了具体的文件读写并响应真实的文件数据,而非一个空白响应
 
 ## 使用姿势
 - 注册一个处理器
@@ -38,7 +36,7 @@ $ tail -n 1 jmeter.log
         ```java
         String value = request.getRequestParam("key");
         ```
-    - 直接获取请求对象:你需要在注册的处理器中添加更多的参数续,目前支持多个对象自动注入,但是还不支持对象嵌套
+    - 直接获取请求对象:你需要在注册的处理器中添加更多的参数,目前支持多个对象自动注入,但是还不支持对象嵌套
         ```java
         @RequestMetadata(path = "/cat", method = POST)
         public void cat(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
@@ -80,7 +78,7 @@ $ tail -n 1 jmeter.log
     //getSession: 得到之前设置过得session对象
     //writeJson: HttpResponse内部封装的方法,用来返回json格式的http响应
     ```
-- 得到请求的Cookie
+- 得到请求Cookie
 
     对于Cookie你只需要参照http请求头的数据,得到由前端传递的Cookie数据,该项操作也封装成了一个方法:
     ```java
@@ -111,7 +109,7 @@ $ tail -n 1 jmeter.log
     }
     //零拷贝的方式高效的返回二进制数据
     //目前支持:html,css,js,png,jpg,octet-stream
-    //需要使用者输入路径便可以通过文件类型发送正确的http响应表头和响应数据
+    //需要使用者输入路径便可以通过文件类型发送正确的http响应报头和响应数据
     public void writeBinary(String path) throws Exception {
     }
 
