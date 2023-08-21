@@ -3,6 +3,7 @@ package com.wkf.tomcat;
 import com.wkf.annotation.AutoCompleteEnable;
 import com.wkf.annotation.RequestMetadata;
 import com.wkf.annotation.RequestParameter;
+import com.wkf.cron.IdleConnectionCleaner;
 import com.wkf.handler.Http400Handler;
 import com.wkf.handler.HttpRequestHandler;
 import com.wkf.handler.StaticFilesHandler;
@@ -31,16 +32,16 @@ import static com.wkf.request.HttpRequest.GET;
 import static com.wkf.request.HttpRequest.POST;
 
 public class TomcatReactor extends Thread {
-    final ServerSocketChannel serverSocket;
+    private final ServerSocketChannel serverSocket;
     public List<HttpRequestHandler> httpHandles;
-    Selector accSelector = Selector.open();
-    Selector[] rwSelectors = null;
-    Logger logger = LoggerFactory.getLogger("Reactor");
+    private Selector accSelector = Selector.open();
+    private Selector[] rwSelectors;
+    private Logger logger = LoggerFactory.getLogger("Reactor");
     private Http400Handler default400;
     private Map<SocketChannel, Map<String, Object>> sessionMap;
     private int selectIndex = 0;
     private int subSelectorN = 4;
-    //    private IdleConnectionCleaner cleaner;
+    private IdleConnectionCleaner cleaner;
     private ThreadPool threadPool;
 
     public TomcatReactor(int port, ThreadPool pool) throws Exception {
@@ -58,7 +59,7 @@ public class TomcatReactor extends Thread {
         }
         httpHandles = new ArrayList<>();
         default400 = new Http400Handler();
-//        cleaner = new IdleConnectionCleaner();
+        cleaner = new IdleConnectionCleaner();
         sessionMap = new ConcurrentHashMap<>(256);
         HttpRequest.setSession(sessionMap);
         Method[] methods = DefaultRouter.class.getMethods();
