@@ -45,7 +45,7 @@ class MultipartFormEntry {
             b = ch;
             if (v == 1) {
                 begin = cur;
-                valueLen = length - cur + offset - 1;
+                valueLen = length - cur + offset - 2;
                 // System.out.println("value: " + new String(contents, cur, length-cur+offset-1, StandardCharsets.UTF_8));
                 break;
             }

@@ -35,6 +35,6 @@ public class DefaultRouter implements Constant {
     @RequestMetadata(path = "/json", method = GET)
     public void json(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
         String value = request.getRequestParam("wkf");
-        response.writeObjectJSON(request);
+        response.writeObjectJSON(value);
     }
 }
