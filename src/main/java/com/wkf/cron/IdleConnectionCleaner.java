@@ -26,7 +26,7 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
         map = new HashMap<>();
     }
 
-    Logger logger = LoggerFactory.getLogger("IdleConnectionCleaner");
+    Logger logger = LoggerFactory.getLogger("cleaner");
 
     public void add(SocketChannel connection, Selector selector) {
         threadSafetyFor(connection, (channel, args) -> {
@@ -85,7 +85,7 @@ public class IdleConnectionCleaner extends Thread implements ChannelTask {
                 if (channel.keyFor(selector) != null)
                     channel.keyFor(selector).cancel();
                 queue.poll();
-                map.remove(connection);
+                map.remove(connection.getConnection());
                 logger.info("active close connection {}", channel);
                 return true;
             } catch (Exception e) {

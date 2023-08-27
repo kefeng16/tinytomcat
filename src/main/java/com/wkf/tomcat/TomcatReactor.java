@@ -72,7 +72,8 @@ public class TomcatReactor extends Thread {
                     public boolean hit(HttpRequest request) {
                         String requestMethod = method.getAnnotation(RequestMetadata.class).method();
                         String requestPath = method.getAnnotation(RequestMetadata.class).path();
-                        return requestPath.equals(request.getRequestHeader().path) && requestMethod.equals(request.getRequestHeader().method);
+                        return requestPath.equals(request.getRequestHeader().path)
+                                && requestMethod.equals(request.getRequestHeader().method);
                     }
 
                     @Override
@@ -90,7 +91,7 @@ public class TomcatReactor extends Thread {
             }
         }
         httpHandles.add(new StaticFilesHandler());
-//        cleaner.start();
+        cleaner.start();
         logger.info("Init done. Lintening on localhost:{}", port);
     }
 
@@ -128,7 +129,7 @@ public class TomcatReactor extends Thread {
                     connection.configureBlocking(false);
                     Selector s = getNextSelector();
                     connection.register(s, SelectionKey.OP_READ);
-//                    cleaner.add(connection, s);
+                    cleaner.add(connection, s);
                     s.wakeup();
                 }
             } catch (IOException e) {
@@ -147,16 +148,20 @@ public class TomcatReactor extends Thread {
                 int index = 2;
                 for (int i = index; i < params.length; i++) {
                     var param = params[i];
-                    if (!param.isAnnotationPresent(RequestParameter.class)) continue;
+                    if (!param.isAnnotationPresent(RequestParameter.class))
+                        continue;
                     var paramInstance = param.getConstructor().newInstance();
                     var fields = paramInstance.getClass().getFields();
                     for (var field : fields) {
-                        if (!field.isAnnotationPresent(AutoCompleteEnable.class)) continue;
+                        if (!field.isAnnotationPresent(AutoCompleteEnable.class))
+                            continue;
                         if (field.getType().isAssignableFrom(String.class)) {
-                            field.set(paramInstance, request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id()));
+                            field.set(paramInstance,
+                                    request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id()));
                         }
                         if (field.getType().isAssignableFrom(int.class)) {
-                            field.set(paramInstance, Integer.valueOf(request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id())));
+                            field.set(paramInstance, Integer
+                                    .valueOf(request.getURLQuery(field.getAnnotation(AutoCompleteEnable.class).id())));
                         }
                     }
                     paramList[index++] = paramInstance;
@@ -167,10 +172,12 @@ public class TomcatReactor extends Thread {
                 var contentType = request.getHeaders().get("Content-Type");
                 if (contentType != null && contentType.contains("json")) {
                     String json = request.getRequestBodyString();
-                    if (json == null) return paramList;
+                    if (json == null)
+                        return paramList;
                     var params = method.getParameterTypes();
                     var param = params[2];
-                    if (!param.isAnnotationPresent(RequestParameter.class)) return paramList;
+                    if (!param.isAnnotationPresent(RequestParameter.class))
+                        return paramList;
                     var paramInstance = param.getConstructor().newInstance();
                     paramList[2] = Json.unmarshal(json, paramInstance.getClass());
                 }
@@ -200,7 +207,8 @@ public class TomcatReactor extends Thread {
                 Set<SelectionKey> keys = selector.selectedKeys();
                 for (SelectionKey key : keys) {
                     SocketChannel connection = (SocketChannel) key.channel();
-                    if (connection == null) continue;
+                    if (connection == null)
+                        continue;
                     try {
                         readHttpRequest(connection);
                     } catch (Exception e) {
@@ -212,7 +220,8 @@ public class TomcatReactor extends Thread {
         }
 
         public void readHttpRequest(SocketChannel connection) throws Exception {
-            if (connection == null) return;
+            if (connection == null)
+                return;
             Synchronization.threadSafetyFor(connection, (channel, args) -> {
                 StringBuilder builder = new StringBuilder();
                 boolean finish = false;
@@ -223,7 +232,7 @@ public class TomcatReactor extends Thread {
                         logger.info("connection closed: {}", channel.getRemoteAddress());
                         channel.keyFor(selector).cancel();
                         sessionMap.remove(connection);
-//                        cleaner.remove(connection);
+                        cleaner.remove(connection);
                         break;
                     }
                     buffer.flip();
@@ -238,14 +247,15 @@ public class TomcatReactor extends Thread {
                     }
                 }
                 String requestString = builder.toString();
-                if (requestString.length() == 0) return false;
+                if (requestString.length() == 0)
+                    return false;
                 Map<String, Object> session = sessionMap.get(channel);
                 if (session == null) {
                     sessionMap.put(channel, new HashMap<>(32));
                 }
                 HttpRequestHeader httpHeader = HttpRequest.decodeHttpHeader(requestString);
                 HttpRequest request = HttpRequest.decodeHttpRequest(httpHeader, channel, buffer);
-//                cleaner.update(connection);
+                cleaner.update(connection);
                 HttpResponse response = new HttpResponse(channel);
                 logger.info("new request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
                 boolean done = false;
@@ -258,7 +268,8 @@ public class TomcatReactor extends Thread {
                 }
                 if (!done) {
                     default400.doHandle(request, response);
-                    logger.error("no mapping handler for request: {} {}", request.getRequestHeader().method, request.getRequestHeader().path);
+                    logger.error("no mapping handler for request: {} {}", request.getRequestHeader().method,
+                            request.getRequestHeader().path);
                 }
                 return done;
             });

@@ -26,15 +26,20 @@ public class DefaultRouter implements Constant {
         response.writeJson(Json.marshal(request.getSession("lastReqTime")));
     }
 
-    @RequestMetadata(path = "/cat", method = POST)
+    @RequestMetadata(path = "/cat", method = GET)
     public void cat(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
         String value = request.getRequestParam("key");
-        response.writeHtml("<h1>6666</h1>");
+        response.writeObjectJSON(cat);
     }
 
     @RequestMetadata(path = "/json", method = GET)
     public void json(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
         String value = request.getRequestParam("wkf");
-        response.writeObjectJSON(value);
+        response.writeObjectJSON(request);
+    }
+
+    @RequestMetadata(path = "/echo", method = GET)
+    public void echo(HttpRequest request, HttpResponse response) throws Exception {
+        response.writeObjectJSON(request);
     }
 }
