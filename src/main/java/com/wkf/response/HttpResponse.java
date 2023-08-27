@@ -2,6 +2,7 @@ package com.wkf.response;
 
 import com.wkf.exception.PayloadEmptyException;
 import com.wkf.lock.Synchronization;
+import com.wkf.util.Json;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -78,6 +79,11 @@ public class HttpResponse {
             connection.write(ByteBuffer.wrap(payload));
             return true;
         });
+    }
+
+    public void writeObjectJSON(Object object) throws Exception {
+        String json = Json.marshal(object);
+        writeJson(json);
     }
 
     public void writeJson(byte[] response) throws Exception {

@@ -33,4 +33,9 @@ public class DefaultRouter implements Constant {
         String value = request.getRequestParam("key");
         response.writeHtml("<h1>6666</h1>");
     }
+
+    @RequestMetadata(path = "/json", method = GET)
+    public void json(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
+        response.writeObjectJSON(request);
+    }
 }
