@@ -100,25 +100,25 @@ $ tail -n 1 jmeter.log
 
 ```java
     //直接返回json字符串
-    public void writeJson(String response) throws Exception {
-    }
-    //字节流的形式返回json
-    public void writeJson(byte[] response) throws Exception {
-    }
-    //返回html字符串
-    public void writeHtml(String response) throws Exception {
-    }
-    //以字节流的形式返回html文本
-    public void writeHtml(byte[] response) throws Exception {
-    }
-    //响应二进制信息
-    public void writeBinary(byte[] response) throws Exception {
-    }
-    //零拷贝的方式高效的返回二进制数据
-    //目前支持:html,css,js,png,jpg,octet-stream
-    //需要使用者输入路径便可以通过文件类型发送正确的http响应报头响应数据
-    public void writeBinary(String path) throws Exception {
-    }
+public void writeJson(String response)throws Exception{
+        }
+//字节流的形式返回json
+public void writeJson(byte[]response)throws Exception{
+        }
+//返回html字符串
+public void writeHtml(String response)throws Exception{
+        }
+//以字节流的形式返回html文本
+public void writeHtml(byte[]response)throws Exception{
+        }
+//响应二进制信息
+public void writeBinary(byte[]response)throws Exception{
+        }
+//零拷贝的方式高效的返回二进制数据
+//目前支持:html,css,js,png,jpg,octet-stream
+//需要使用者输入路径便可以通过文件类型发送正确的http响应报头响应数据
+public void writeBinary(String path)throws Exception{
+        }
 
 ```
 

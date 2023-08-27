@@ -9,8 +9,6 @@ import com.wkf.response.HttpResponse;
 import com.wkf.util.Cat;
 import com.wkf.util.Json;
 
-import java.util.Date;
-
 @RequestRouter
 public class DefaultRouter implements Constant {
     public DefaultRouter() {
@@ -36,6 +34,7 @@ public class DefaultRouter implements Constant {
 
     @RequestMetadata(path = "/json", method = GET)
     public void json(HttpRequest request, HttpResponse response, Cat cat) throws Exception {
+        String value = request.getRequestParam("wkf");
         response.writeObjectJSON(request);
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wkf.constant.Constant;
 import com.wkf.exception.ParseHttpException;
+import com.wkf.exception.ParseMultipartformException;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -11,9 +12,7 @@ import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 public class HttpRequest implements Constant {
@@ -174,18 +173,21 @@ public class HttpRequest implements Constant {
             if (index != -1) {
                 boundary = "--" + type.substring(index + 9);
                 try {
-                    parseMultipartForm(requestBody.body, boundary.getBytes(StandardCharsets.UTF_8));
+                    MultipartForm forms = parseMultipartForm(requestBody.body, boundary.getBytes(StandardCharsets.UTF_8));
+                    String value = forms.getValue(key);
+                    if (value != null) return value;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
-        return "";
+        String value = getURLQuery(key);
+        if (value != null) return value;
+        return null;
     }
 
-    public void parseMultipartForm(byte[] content, byte[] boundary) throws Exception {
+    public MultipartForm parseMultipartForm(byte[] content, byte[] boundary) throws Exception {
         var form = new MultipartForm();
-        List<MultipartForm> parts = new ArrayList<>(4);
         int index = boundary.length + 1, a = 0, b = 0, c = 0, size = 0;
         int cur = index + 1;
         int offset = cur, length = 0;
@@ -211,9 +213,9 @@ public class HttpRequest implements Constant {
                         form.add(new MultipartFormEntry(boundary, content, offset, length));
                         char x = (char) content[++cur];
                         char y = (char) content[++cur];
-                        if (x == '-' && y == '-') return;
-                        if (x != '\r') throw new ParseHttpException("bad MultipartForm");
-                        if (y != '\n') throw new ParseHttpException("bad MultipartForm");
+                        if (x == '-' && y == '-') return form;
+                        if (x != '\r') throw new ParseMultipartformException("bad MultipartForm");
+                        if (y != '\n') throw new ParseMultipartformException("bad MultipartForm");
                         inSearch = false;
                         offset = cur + 1;
                     } else {
@@ -224,6 +226,7 @@ public class HttpRequest implements Constant {
             }
             cur++;
         }
+        return form;
     }
 
     public HttpRequestBody getRequestBody() {

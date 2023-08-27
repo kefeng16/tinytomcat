@@ -13,8 +13,8 @@ import java.util.Map;
 class MultipartFormEntry {
     private final int offset;
     private final int length;
+    private final byte[] contents;
     private byte[] boundary;
-    private byte[] contents;
     private Map<String, String> metadata = new HashMap<>();
     private int begin = 0, valueLen = 0;
 
@@ -92,6 +92,10 @@ class MultipartFormEntry {
         return new ByteArrayInputStream(contents, begin, valueLen);
     }
 
+    public String getValueString() {
+        return new String(contents, begin, valueLen, StandardCharsets.UTF_8);
+    }
+
     public String getName() {
         var name = metadata.get("name");
         if (name == null) return null;
@@ -116,5 +120,14 @@ class MultipartForm {
 
     public synchronized void add(MultipartFormEntry entry) {
         forms.add(entry);
+    }
+
+    public String getValue(String name) {
+        for (var form : forms) {
+            if (form.getName().equals(name) && !form.isFile()) {
+                return form.getValueString();
+            }
+        }
+        return null;
     }
 }
